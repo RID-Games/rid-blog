@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>27B at 30 tok/s on a $565 32GB server GPU — no CUDA · The Cardboard Supercomputer · RID</title>
-<meta name="description" content="Qwen3.8-27B at 30+ tok/s decode on a Radeon Pro V620 — 32 GB of AMD VRAM for about $565, running llama.cpp on ROCm with MTP speculative decoding at 92% draft acceptance. Numbers, flags, and the four traps." />
+<title>27B at 30 tok/s on a $376 32GB server GPU — no CUDA · The Cardboard Supercomputer · RID</title>
+<meta name="description" content="Qwen3.8-27B at 30+ tok/s decode on a Radeon Pro V620 — 32 GB of AMD VRAM for $376 all in, running llama.cpp on ROCm with MTP speculative decoding at 92% draft acceptance. Numbers, flags, and the four traps." />
 <meta name="theme-color" content="#070B16" />
 <link rel="canonical" href="https://blog.rebelintelligencedetachment.com/posts/27b-on-a-565-dollar-gpu/" />
 <meta property="og:type" content="article" />
-<meta property="og:title" content="27B at 30 tok/s on a $565 32GB server GPU — no CUDA" />
+<meta property="og:title" content="27B at 30 tok/s on a $376 32GB server GPU — no CUDA" />
 <meta property="og:description" content="30.5–32.2 tok/s decode, 92% draft acceptance, on a 2020 AMD VDI card nobody supports. The numbers, the flags, and the four traps that cost me a month." />
 <meta property="og:image" content="https://blog.rebelintelligencedetachment.com/assets/box-hero-front.jpg" />
 <meta name="twitter:card" content="summary_large_image" />
@@ -120,9 +120,9 @@
 
 <article>
   <div class="eyebrow">FIELD LOG <b>001</b> · 2026-10-27 · HARDWARE / LOCAL AI</div>
-  <h1>27B at 30 tok/s on a <span class="d">$565</span> 32GB server GPU — no CUDA</h1>
+  <h1>27B at 30 tok/s on a <span class="d">$376</span> 32GB server GPU — no CUDA</h1>
 
-  <div class="tldr"><b>TL;DR:</b> Qwen3.8-27B at Q6_K, 192K context, <b>30.5–32.2 tok/s decode</b> on a Radeon Pro V620 — 32 GB of AMD VRAM for about $565 — running llama.cpp on ROCm with MTP speculative decoding at <b>92% draft acceptance</b>. Six probe runs, every number below is from the server's own timing report. Here are the numbers, the exact flags, and the four traps that cost me a month.</div>
+  <div class="tldr"><b>TL;DR:</b> Qwen3.8-27B at Q6_K, 192K context, <b>30.5–32.2 tok/s decode</b> on a Radeon Pro V620 — 32 GB of AMD VRAM for <b>$376 all in</b>, $300 card plus $76 of cooling — running llama.cpp on ROCm with MTP speculative decoding at <b>92% draft acceptance</b>. Six probe runs, every number below is from the server's own timing report. Here are the numbers, the exact flags, and the four traps that cost me a month.</div>
 
   <figure>
     <img src="/assets/box-hero-front.jpg" alt="The cardboard supercomputer: a Home Depot box, a bolted fan wall, and 48 GB of AMD VRAM" />
@@ -132,6 +132,7 @@
   <h2>The card</h2>
   <p>The Radeon Pro V620 is a virtual-desktop GPU from the exadatacenter flood: Navi 21 silicon (same family as the RX 6800 XT, launched <b>2020</b>) with <b>32 GB of GDDR6</b> instead of 16, no display outputs, and passive cooling — it expects a server chassis with an air duct, which is exactly what I gave it.</p>
   <p>When I bought mine, they were about $300. They were $565 when I wrote the first draft of this. Today they're going for about <b>$1,000</b> — the internet found them, which is the entire arc of these cards and the reason the timing was luck rather than skill. If you're reading this in 2027 and they're still four figures, enjoy the numbers anyway; the point was never that it stayed cheap.</p>
+  <p>The number in the title is <b>$376</b>, and it is not the price of the card. It is $300 of V620 plus $76 of cooling, because a passive VDI card with no fan on it is a half-finished product, and pricing it like a finished one is cheating. The cooling bill is part of the cost of the VRAM. Full BOM is at the bottom of this post, and it is the part of the build that actually saved the card.</p>
   <p>What you don't get: CUDA, display outputs, a cooler, or official ROCm support.<br />
   What you do get: the cheapest 32 GB of AMD VRAM on the planet — which means the cheapest way to run a 27B Q6 model with a <em>real</em> context window instead of a toy one.</p>
   <p>And before the comments ask: yes, the whole machine lives in a <b>cardboard box</b>, held together with zip ties and a $4 tube of silicone sealant. Every component inside costs what it costs; none of it costs what the <em>branding around it</em> costs. The RGB tax is a tax. The tempered-glass tax is a tax. My junction temps are measured, my airflow is engineered, and my chassis cost $0 — the box is not a compromise, it is the thesis.</p>
