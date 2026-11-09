@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>27B at 30 tok/s on a 565-dollar 32GB server GPU — no CUDA · The Cardboard Supercomputer · RID</title>
-<meta name="description" content="Qwen3.8-27B at 30+ tok/s decode on a Radeon Pro V620 — 32 GB of AMD VRAM for about 565 dollars, running llama.cpp on ROCm with MTP speculative decoding at 92% draft acceptance. Numbers, flags, and the four traps." />
+<title>27B at 30 tok/s on a $565 32GB server GPU — no CUDA · The Cardboard Supercomputer · RID</title>
+<meta name="description" content="Qwen3.8-27B at 30+ tok/s decode on a Radeon Pro V620 — 32 GB of AMD VRAM for about $565, running llama.cpp on ROCm with MTP speculative decoding at 92% draft acceptance. Numbers, flags, and the four traps." />
 <meta name="theme-color" content="#070B16" />
 <link rel="canonical" href="https://blog.rebelintelligencedetachment.com/posts/27b-on-a-565-dollar-gpu/" />
 <meta property="og:type" content="article" />
-<meta property="og:title" content="27B at 30 tok/s on a 565-dollar 32GB server GPU — no CUDA" />
+<meta property="og:title" content="27B at 30 tok/s on a $565 32GB server GPU — no CUDA" />
 <meta property="og:description" content="30.5–32.2 tok/s decode, 92% draft acceptance, on a 2020 AMD VDI card nobody supports. The numbers, the flags, and the four traps that cost me a month." />
 <meta property="og:image" content="https://blog.rebelintelligencedetachment.com/assets/box-hero-front.jpg" />
 <meta name="twitter:card" content="summary_large_image" />
@@ -120,9 +120,9 @@
 
 <article>
   <div class="eyebrow">FIELD LOG <b>001</b> · 2026-10-27 · HARDWARE / LOCAL AI</div>
-  <h1>27B at 30 tok/s on a <span class="d">565-dollar</span> 32GB server GPU — no CUDA</h1>
+  <h1>27B at 30 tok/s on a <span class="d">$565</span> 32GB server GPU — no CUDA</h1>
 
-  <div class="tldr"><b>TL;DR:</b> Qwen3.8-27B at Q6_K, 192K context, <b>30.5–32.2 tok/s decode</b> on a Radeon Pro V620 — 32 GB of AMD VRAM for about 565 dollars — running llama.cpp on ROCm with MTP speculative decoding at <b>92% draft acceptance</b>. Six probe runs, every number below is from the server's own timing report. Here are the numbers, the exact flags, and the four traps that cost me a month.</div>
+  <div class="tldr"><b>TL;DR:</b> Qwen3.8-27B at Q6_K, 192K context, <b>30.5–32.2 tok/s decode</b> on a Radeon Pro V620 — 32 GB of AMD VRAM for about $565 — running llama.cpp on ROCm with MTP speculative decoding at <b>92% draft acceptance</b>. Six probe runs, every number below is from the server's own timing report. Here are the numbers, the exact flags, and the four traps that cost me a month.</div>
 
   <figure>
     <img src="/assets/box-hero-front.jpg" alt="The cardboard supercomputer: a Home Depot box, a bolted fan wall, and 48 GB of AMD VRAM" />
@@ -131,10 +131,10 @@
 
   <h2>The card</h2>
   <p>The Radeon Pro V620 is a virtual-desktop GPU from the exadatacenter flood: Navi 21 silicon (same family as the RX 6800 XT, launched <b>2020</b>) with <b>32 GB of GDDR6</b> instead of 16, no display outputs, and passive cooling — it expects a server chassis with an air duct, which is exactly what I gave it.</p>
-  <p>When I bought mine, they were about 300 dollars. They are 565 dollars now. The internet found them. If you're reading this in 2027, the arbitrage is probably closed and you should enjoy the numbers anyway.</p>
+  <p>When I bought mine, they were about $300. They were $565 when I wrote the first draft of this. Today they're going for about <b>$1,000</b> — the internet found them, which is the entire arc of these cards and the reason the timing was luck rather than skill. If you're reading this in 2027 and they're still four figures, enjoy the numbers anyway; the point was never that it stayed cheap.</p>
   <p>What you don't get: CUDA, display outputs, a cooler, or official ROCm support.<br />
   What you do get: the cheapest 32 GB of AMD VRAM on the planet — which means the cheapest way to run a 27B Q6 model with a <em>real</em> context window instead of a toy one.</p>
-  <p>And before the comments ask: yes, the whole machine lives in a <b>cardboard box</b>, held together with zip ties and a five-dollar tube of silicone sealant. Every component inside costs what it costs; none of it costs what the <em>branding around it</em> costs. The RGB tax is a tax. The tempered-glass tax is a tax. My junction temps are measured, my airflow is engineered, and my chassis cost zero dollars — the box is not a compromise, it is the thesis.</p>
+  <p>And before the comments ask: yes, the whole machine lives in a <b>cardboard box</b>, held together with zip ties and a $4 tube of silicone sealant. Every component inside costs what it costs; none of it costs what the <em>branding around it</em> costs. The RGB tax is a tax. The tempered-glass tax is a tax. My junction temps are measured, my airflow is engineered, and my chassis cost $0 — the box is not a compromise, it is the thesis.</p>
   <figure>
     <img src="/assets/box-interior.jpg" alt="Inside the box: RX 9060 XT over Radeon Pro V620, HX1200i on the cardboard floor" />
     <figcaption>Inside the box: RX 9060 XT over Radeon Pro V620, HX1200i on the cardboard floor, everything zip-tied except the parts that carry heat.</figcaption>
@@ -183,32 +183,39 @@
     <li><b>Thermals.</b> As shipped, a passively-cooled VDI card under sustained inference sits at 99–100 °C junction — and it has <b>no fan interface at all</b>: its hwmon node exposes no <code>fan*</code> or <code>pwm*</code> attributes, so software can neither watch it nor cool it. The fix is mechanical; see the next section.</li>
   </ol>
 
-  <h2>The cooling fix (full BOM, about 60 dollars)</h2>
-  <p>First, the measurement that tells you everything: maxing the <em>case</em> fans — 6.6x the airflow — moved the V620's junction <b>4 °C in the wrong direction</b>. A passive-tunnel card pulling its own intake does not care about your chassis wind; it cares about the seal between itself and dedicated air. So I stopped buying airflow and built a duct:</p>
+  <h2>The cooling fix (full BOM, about $76)</h2>
+  <p>The first attempt was the obvious one: a <b>120&nbsp;mm fan shroud adapter</b> off eBay, the bolt-on kind that lets you point a case fan at a passive server card. It was wholly inadequate. Under sustained inference the junction climbed right back to the 99–100 °C plateau it sat at with nothing on it at all. One 120&nbsp;mm fan cannot push enough static pressure through a Navi 21 fin stack to cool a card that was designed to have a server blower forced through it.</p>
+  <p>So I stopped cooling it like a desktop card and cooled it like server hardware: <b>4× 40&nbsp;mm server blower fans</b> on a shroud that seals the card's intake to the fan wall. The shroud is not my design — it's <a href="https://www.printables.com/model/1712035-amd-v340-v520-v620-mi25-mi50-mi60-mi100-mi210-fan">Caleb Szalacinski's AMD shroud on Printables</a>, which covers the V340, V520, V620 and most of the Instinct line. Designing my own would have been an idiot move, and I don't own a printer, so the print cost me $30.</p>
+  <p>Two assembly details that matter more than they sound. <b>Heat-set M3 inserts</b> in the shroud, not self-tapping screws into PLA — you will open this thing more times than you expect. And <b>95&nbsp;mm M3 screws</b> running through the whole stack, so shroud, card, and fan wall come off as one assembly instead of five surprises.</p>
+  <p>The setback worth hearing before you buy: the PWM fans arrived with the wrong plugs. I found a wiring diagram online, trusted it, and fried both fans the first time power hit them — then damaged the shroud prying the assembly apart to get at them. Repaired with <b>J-B Weld KwikWeld</b>, finished with spare <b>2-wire</b> fans wired correctly. Check the pinout against the fan's own datasheet and the plug against your controller <em>before</em> you apply power. A thumbnail off a forum is not a wiring document.</p>
   <table>
     <tr><th>Part</th><th>Source</th><th>Cost</th></tr>
-    <tr><td>Duct (3D printed, snaps card intake to 4× fan wall)</td><td>my file — link coming soon</td><td>filament</td></tr>
-    <tr><td>4× PWM server fans</td><td>AliExpress</td><td>about 30</td></tr>
-    <tr><td>PWM fan controller + splitter + power board</td><td>AliExpress</td><td>about 20</td></tr>
-    <tr><td><b>Silicone sealant</b> — the actual cooling technology</td><td>Menards, 5-dollar tube</td><td>5</td></tr>
+    <tr><td>Shroud — custom print of an existing design</td><td><a href="https://www.printables.com/model/1712035-amd-v340-v520-v620-mi25-mi50-mi60-mi100-mi210-fan">Printables</a>, printed for me</td><td>$30</td></tr>
+    <tr><td>4× 40&nbsp;mm PWM server blower fans</td><td>—</td><td>$20 ($5 ea.)</td></tr>
+    <tr><td>PWM fan controller</td><td>—</td><td>$4</td></tr>
+    <tr><td><b>Silicone sealant</b> — the actual cooling technology</td><td>Menards</td><td>$4</td></tr>
+    <tr><td>M3 screws, 95&nbsp;mm</td><td>—</td><td>$9</td></tr>
+    <tr><td>M3 heat-set inserts, 100-pack (AliExpress beats Amazon here)</td><td>Amazon</td><td>$9</td></tr>
+    <tr><td><b>Airflow subtotal</b></td><td></td><td><b>$76</b></td></tr>
   </table>
-  <p>A duct with gaps is a fan decoration; the sealant is what makes it a cooling solution. The controller board lives outside software entirely, which is correct for a card that refuses to talk about its own temperature.</p>
+  <p>A shroud with gaps is a fan decoration; the sealant is what makes it a cooling solution. The controller lives outside software entirely, which is correct for a card that refuses to talk about its own temperature.</p>
+  <p>Budget a <b>repaste</b> into this as well, because you are buying a six-year-old card secondhand. I used a <b>PTM7950</b> sheet ($17) plus 100&nbsp;g of thermal putty ($45), and that is the one line item I'd buy differently: I used 15–20&nbsp;g, so $18 of 30&nbsp;g would have covered the job with plenty left over. A realistic first build doing the thermal work properly lands around <b>$111</b>.</p>
   <p>And because the card won't watch itself, a watchdog does: a monitor script reads every thermal sensor every five seconds, asks the model server to <em>unload</em> when a card runs hot, and will trip a poweroff if things get truly bad. It has a real trip history — this isn't a hypothetical safety system, it's one that has actually saved this box from itself. The chassis is cardboard; the fire suppression strategy is software, and it has receipts.</p>
-  <p>Post-duct numbers, measured by the box's own watchdog across an eleven-hour window of real use (7,806 five-second samples, this machine doing its actual job):</p>
+  <p>Post-shroud numbers, measured by the box's own watchdog across an eleven-hour window of real use (7,806 five-second samples, this machine doing its actual job):</p>
   <table>
     <tr><th>Condition</th><th>Junction</th><th>VRAM</th></tr>
     <tr><td>Idle</td><td><b>26 °C</b></td><td>~30 °C</td></tr>
     <tr><td>Sustained inference (&gt;150 W)</td><td><b>69 °C mean</b>, bulk 60–80 °C</td><td>max <b>66 °C</b></td></tr>
     <tr><td>Model-load ramp (250 W spikes)</td><td>brief peaks to 99 °C</td><td>—</td></tr>
   </table>
-  <p>The honest fine print: the junction <em>does</em> spike to 99 °C during 250-watt load ramps — but the longest consecutive run above 90 °C in the entire dataset is <b>25 seconds</b>. Before the duct, 99–100 °C was a 25-minute <em>plateau</em>, and the VRAM that now peaks at 66 °C used to sit at 92 °C. Same card, same watts, same cardboard — the difference is forty cents of filament and five dollars of sealant.</p>
+  <p>The honest fine print: the junction <em>does</em> spike to 99 °C during 250-watt load ramps — but the longest consecutive run above 90 °C in the entire dataset is <b>25 seconds</b>. Before the shroud, 99–100 °C was a 25-minute <em>plateau</em>, and the VRAM that now peaks at 66 °C used to sit at 92 °C. Same card, same watts, same cardboard — the difference is $76 of plastic, fans, and sealant.</p>
 
   <h2>Honest caveats</h2>
   <ul>
     <li><b>Inference only.</b> This is not a training card and I won't pretend otherwise.</li>
     <li><b>ROCm is a supported path, not a first-class one.</b> Every driver/ROCm/llama.cpp update is a re-test. Budget for it.</li>
     <li><b>Prefill loses to NVIDIA.</b> Decode doesn't, by much. If your workload is 100K-token prompts all day, buy the other card.</li>
-    <li><b>The card needs airflow you engineer yourself</b> — the duct BOM above is cheap and non-optional.</li>
+    <li><b>The card needs airflow you engineer yourself</b> — the shroud BOM above is cheap and non-optional.</li>
     <li>If you need everything to work out of the box, this blog post is not for you. It's for the other 10,000 people.</li>
   </ul>
 
