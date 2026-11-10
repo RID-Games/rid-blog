@@ -690,6 +690,8 @@
 
 <p>The warm-prefix case is different again. Once the DSH system prompt/tools/spec prefix is cached, TTFT collapses: the 27B&rsquo;s warm request had <strong>0.22 s</strong> prompt-eval for 4 new tokens, and Flash Next&rsquo;s warm decode measured <strong>47 tok/s</strong> on a cached prompt. The cold table above is the honest first-request cost; the warm numbers are what repeated DSH sessions actually feel like.</p>
 
+<p><strong>So, in one paragraph:</strong> both models decode at essentially the same rate — <strong>32.5 vs 32.66 tok/s</strong>. Flash Next prefills <strong>~46% faster</strong> (497 vs 340 tok/s), uses <strong>~2.4% fewer prompt tokens</strong> (7,957 vs 8,149) on the same DSH prompt, and runs <strong>15–40 °C cooler</strong> (60–75 vs 90–100 °C). And it is the much more capable model: <strong>177B total / ~3B active vs 27B dense</strong>, with the better eval score, vision and 196K context. That is what the whole machine buys: more model, faster prefill, fewer prompt tokens and lower temperature, at the same decode speed.</p>
+
 <p>Caveats: one cold run per model; timings are rounded server-log values; the 27B was thermally throttling at 90–100 °C; Flash Next&rsquo;s expert cache hit 84.5% on the cold request; and first-step output lengths differ, so decode rate — not total tokens — is the comparable metric. The 90K prefill figure elsewhere in this post is a warm, long-context probe; this table is the cold, real-prompt measurement.</p>
 
 <h2>What it costs</h2>
