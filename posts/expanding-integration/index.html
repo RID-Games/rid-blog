@@ -401,30 +401,9 @@
 
 <p>The single likeliest source of the gap is not the parameter count. It is that <strong>Flash Next reasons by default and the 27B runs <code>--reasoning off</code></strong>. The honest experiment — turn reasoning on for the 27B and re-run — is still on the list, and it requires stopping Strata first.</p>
 
-<h2>The test that matters: Hellbound: Lost</h2>
-
-<p>Benchmarks are clean. A game is not. <em>Hellbound: Lost</em> is the vertical slice I used as the real capability test, and its history is messier than I remembered.</p>
-
-<p><strong>October 7 — the 27B builds v1.</strong> One session, <strong>115 steps, about an hour</strong>, from a one-page brief: first-person controller, O2 and bleed meters, a Diablo-style grid inventory, a tool belt, a scavenge/deposit/quota loop, a placeholder warehouse, and a five-assertion in-game check. <strong>19 files, 3,052 lines</strong>, including a 658-line scene generator. It was complete and playable. It was also shallow: a static box level, no procedural generation, no reasoning about the design.</p>
-
-<p><strong>October 15 — Flash Next tries the same rebuild and dies.</strong> Same prompt, from scratch. The engine exited <code>-15</code> at 20:28:57 with <code>verify: timed out</code> at layers 45, 4, 1, 2 and 27 — the KFD/userptr stall documented in the Strata notes. A second attempt on October 17 stopped mid-scene-write. The model was not the thing that failed; the serving stack was.</p>
-
-<p><strong>October 24 — the rebuild that landed was cloud DeepSeek v4 flash.</strong> I need to say that plainly, because I spent this article arguing for local. The same rebuild prompt, retried on the cloud model, produced the procedural 15×11 maze, the hand-map loader, the compass-as-found-tool, and <strong>205–211 checks</strong>. The local 180B could not finish the job in October because the engine kept dying, not because it could not write the code.</p>
-
-<p><strong>October 27–30 — Flash Next ships the expansion.</strong> Once the card was stable, the local model did the long multi-session work: controller and mobile input, the camp, the second contract, the site plan, the merged guardian, <strong>687 → 713 automated checks</strong>, and an APK. The current slice is <strong>63 GDScript files, 13,971 lines, 16 scenes</strong>. That is the capability that matters for an agent: not one impressive answer, but days of coherent work across sessions without losing the design.</p>
-
-<p>So the honest comparison is not &ldquo;27B built it, Flash Next remade it.&rdquo; It is:</p>
-
-<ul>
-<li><strong>27B:</strong> a genuine one-shot build — fast, complete, shallow.</li>
-<li><strong>Flash Next:</strong> a failed rebuild while the stack was unstable, then a sustained expansion once it was not. The 713-check version is the one that exists today.</li>
-<li><strong>The clean capability number</strong> is the harness: 0.75 vs 0.88–1.00, with the reasoning caveat.</li>
-</ul>
-
-
 <h2>The Diner of the Dead head-to-head</h2>
 
-<p>The Hellbound history is a real-world test, but it is not a controlled one. So I ran the same brief through both models from an empty project: the full 7,768-character <em>Diner of the Dead</em> implementation spec, the same 12 MB GLB/texture pack, the same four tools (<code>bash</code>, <code>read_file</code>, <code>write_file</code>, <code>finish</code>), temperature 0.2, and a two-hour wall clock. The only variable was the model. The V620 was handed over between runs with <code>POST /unload</code> and <code>POST /load</code>; nothing else on the box changed.</p>
+<p>A benchmark is a clean test, but it is not a game. So I ran the same brief through both models from an empty project: the full 7,768-character <em>Diner of the Dead</em> implementation spec, the same 12 MB GLB/texture pack, the same four tools (<code>bash</code>, <code>read_file</code>, <code>write_file</code>, <code>finish</code>), temperature 0.2, and a two-hour wall clock. The only variable was the model. The V620 was handed over between runs with <code>POST /unload</code> and <code>POST /load</code>; nothing else on the box changed.</p>
 
 <p>Two protocol notes. The 27B got a 4,096-token response cap and never hit it. Flash Next&rsquo;s reasoning is billed against the same budget, and on its first attempts it spent the entire budget thinking and returned no tool call — so the harness <strong>doubled the budget after any length-truncated turn</strong> (8,192 → 16,384 → 32,768) and told the model to stop planning and take a concrete action. The reasoning stayed on. And the 27B was stopped at <strong>25 minutes</strong>, not two hours: it had made <strong>47 identical failed edits</strong> to the same file, and the second hour was not going to be different. Flash Next got the full window.</p>
 
@@ -560,7 +539,7 @@
 
 <p>The four-tool loop&rsquo;s 47-edit failure was not a model verdict. With <code>edit</code>, line-numbered <code>read</code> and a verification loop, the 27B could see the exact parse error, change <strong>one line</strong>, and rerun. It took 236 small steps and 65 minutes; my loop gave it a <code>write_file</code> hammer and a nudge, and it spent 47 turns hitting the same <code>intersect_ray</code> error.</p>
 
-<p>So what does the 180B actually buy? Not raw code volume on a one-shot build. It buys the eval score (<strong>0.75 → 0.88–1.00</strong>), vision, a 196K context that stays coherent, and the multi-session Hellbound expansion. Those are the capabilities that survived the harness correction. The 27B, given the same tools, is a competent one-shot builder.</p>
+<p>So what does the 180B actually buy? Not raw code volume on a one-shot build. It buys the eval score (<strong>0.75 → 0.88–1.00</strong>), vision, and a 196K context that stays coherent. Those are the capabilities that survived the harness correction. The 27B, given the same tools, is a competent one-shot builder.</p>
 
 <p><strong>The 27B can finish; the 180B can finish more. The harness decides which of those sentences you get to write.</strong></p>
 
@@ -682,7 +661,7 @@
 
 <p><strong>1. The 180B is not slower to first token — it is faster.</strong> On the same real prompt, the 177B model prefills at <strong>497 tok/s</strong> against the dense 27B&rsquo;s <strong>340 tok/s</strong>, and reaches its first token <strong>8 seconds sooner</strong>. Decode is a tie: 32.5 vs 32.66 tok/s. The reason is sparsity: only ~3B parameters are active per token, so the bigger model does less prefill math than the dense 27B. The 32 GB card alone could never hold it; the RAM tier and NVMe are what let the sparse model be <em>faster</em> than the smaller dense one.</p>
 
-<p><strong>2. What that buys is capability, not throughput.</strong> The 180B is the model that scored <strong>0.75 → 0.88–1.00</strong>, sees images, holds 196K context, and carried the multi-session Hellbound expansion. The 27B is the simpler machine — 22 GB of VRAM, one binary, no RAM tier — and it is the one that cannot run the 177B at all. The whole machine&rsquo;s payoff is that the capability arrives without a TTFT penalty; on this prompt it is a TTFT win.</p>
+<p><strong>2. What that buys is capability, not throughput.</strong> The 180B is the model that scored <strong>0.75 → 0.88–1.00</strong>, sees images and holds 196K context. The 27B is the simpler machine — 22 GB of VRAM, one binary, no RAM tier — and it is the one that cannot run the 177B at all. The whole machine&rsquo;s payoff is that the capability arrives without a TTFT penalty; on this prompt it is a TTFT win.</p>
 
 <p><strong>3. The first step still takes longer, because the 180B thinks more.</strong> It generated 385 tokens (reasoning plus tool calls) against the 27B&rsquo;s 109, so its first step finishes in 29.7 s vs 27.5 s even with the faster TTFT. That is the quality/speed trade in one line: the 180B gets to the first token sooner, then spends more tokens before it acts.</p>
 
