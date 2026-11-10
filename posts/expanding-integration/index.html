@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Expanding Integration: Using the Whole Machine to Upgrade to 180B · The Cardboard Supercomputer · RID</title>
+<meta name="description" content="Qwen3.8-Flash-Next, 177B total / ~3B active, on the same $376 V620: 196K context, ~34 GiB pinned in RAM, 497 tok/s cold prefill, 32.5 tok/s decode — plus a 27B-vs-180B head-to-head and both debug APKs." />
+<meta name="theme-color" content="#070B16" />
+<link rel="canonical" href="https://blog.rebelintelligencedetachment.com/posts/expanding-integration/" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Expanding Integration: Using the Whole Machine to Upgrade to 180B" />
+<meta property="og:description" content="Qwen3.8-Flash-Next, 177B total / ~3B active, on the same $376 V620: 196K context, ~34 GiB pinned in RAM, 497 tok/s cold prefill, 32.5 tok/s decode — plus a 27B-vs-180B head-to-head and both debug APKs." />
+<meta property="og:image" content="https://blog.rebelintelligencedetachment.com/assets/box-hero-front.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --void:#070B16; --void-2:#04060D; --panel:#0c1421; --panel-2:#0e1626;
+    --line:#1c2637; --line-2:#2a3a55;
+    --steel:#8a94a6; --text:#e8ecf4; --dim:#5c667a;
+    --amber:#ff8a3d; --amber-2:#ffa45c;
+    --mono:'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    --sans:'Hanken Grotesk', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body {
+    margin:0; font-family:var(--sans); color:var(--text); background:var(--void);
+    -webkit-font-smoothing:antialiased; line-height:1.65; overflow-x:hidden;
+    min-height:100vh; position:relative;
+  }
+  body::before {
+    content:""; position:fixed; inset:0; z-index:-2;
+    background:
+      linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 100% 48px,
+      linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 48px 100%;
+    opacity:0.35;
+    -webkit-mask-image: radial-gradient(120% 90% at 50% 0%, #000 55%, transparent 100%);
+            mask-image: radial-gradient(120% 90% at 50% 0%, #000 55%, transparent 100%);
+  }
+  body::after {
+    content:""; position:fixed; inset:0; z-index:-3;
+    background:
+      radial-gradient(50rem 34rem at 88% 108%, rgba(255,138,61,0.14), transparent 60%),
+      linear-gradient(180deg, var(--void) 0%, var(--void-2) 100%);
+  }
+  .hud { position:fixed; inset:18px; z-index:0; pointer-events:none; }
+  .hud i { position:absolute; width:22px; height:22px; border:2px solid var(--amber); opacity:0.55; }
+  .hud .tl { top:0; left:0; border-right:0; border-bottom:0; }
+  .hud .tr { top:0; right:0; border-left:0; border-bottom:0; }
+  .hud .bl { bottom:0; left:0; border-right:0; border-top:0; }
+  .hud .br { bottom:0; right:0; border-left:0; border-top:0; }
+  a { color:var(--amber-2); text-decoration:none; }
+  a:hover { color:var(--amber); }
+  .wrap { width:min(760px, 92vw); margin-inline:auto; position:relative; z-index:1; }
+  .bar { display:flex; align-items:center; justify-content:space-between; padding:26px 0; gap:16px; }
+  .sig { font-family:var(--mono); font-weight:700; letter-spacing:0.32em; font-size:0.86rem; color:var(--text); }
+  .sig a { color:inherit; }
+  .bar-home { font-family:var(--mono); font-size:0.78rem; letter-spacing:0.06em; color:var(--steel);
+    border:1px solid var(--line-2); padding:8px 14px; border-radius:2px; transition:border-color .2s, color .2s; }
+  .bar-home:hover { color:var(--amber-2); border-color:var(--amber); }
+  article { padding:clamp(30px,6vw,64px) 0 80px; }
+  .eyebrow { font-family:var(--mono); font-size:0.78rem; letter-spacing:0.22em; color:var(--dim); margin-bottom:20px; }
+  .eyebrow b { color:var(--amber); font-weight:500; }
+  h1 {
+    font-family:var(--mono); font-weight:700; letter-spacing:0.02em; line-height:1.08;
+    font-size:clamp(1.7rem,4.6vw,2.9rem); margin:0 0 26px; text-transform:uppercase;
+  }
+  h1 .d { color:var(--amber); }
+  h2 {
+    font-family:var(--mono); font-weight:700; font-size:1.22rem; letter-spacing:0.04em;
+    margin:56px 0 16px; text-transform:uppercase; color:var(--text);
+  }
+  h2::before { content:"// "; color:var(--amber); }
+  p { margin:0 0 18px; color:var(--text); }
+  .tldr {
+    background:var(--panel); border:1px solid var(--line-2); border-left:3px solid var(--amber);
+    padding:18px 20px; border-radius:4px; margin:0 0 30px; font-size:1.02rem;
+  }
+  .tldr b { color:var(--amber-2); }
+  img { width:100%; height:auto; border:1px solid var(--line-2); border-radius:4px; margin:10px 0 6px; display:block; }
+  figcaption { font-family:var(--mono); font-size:0.78rem; color:var(--dim); margin:0 0 24px; }
+  pre {
+    background:var(--panel-2); border:1px solid var(--line); border-radius:4px;
+    padding:18px 20px; overflow-x:auto; font-family:var(--mono); font-size:0.84rem;
+    line-height:1.6; color:var(--text); margin:0 0 22px;
+  }
+  code { font-family:var(--mono); font-size:0.88em; background:var(--panel-2); border:1px solid var(--line);
+    border-radius:3px; padding:1px 6px; color:var(--amber-2); }
+  pre code { background:none; border:none; padding:0; color:var(--text); }
+  table { width:100%; border-collapse:collapse; margin:0 0 22px; font-size:0.92rem; }
+  th { font-family:var(--mono); font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--dim); text-align:left; padding:10px 12px; border-bottom:1px solid var(--line-2); }
+  td { padding:9px 12px; border-bottom:1px solid var(--line); color:var(--text); }
+  tr:hover td { background:rgba(255,138,61,0.04); }
+  ul, ol { margin:0 0 20px; padding-left:22px; }
+  li { margin-bottom:10px; }
+  li::marker { color:var(--amber); }
+  .fine { font-size:0.88rem; color:var(--steel); }
+  .manifesto {
+    font-family:var(--mono); font-weight:700; font-size:1.3rem; color:var(--amber);
+    text-align:center; margin:56px 0 0; letter-spacing:0.03em;
+  }
+  hr { border:none; border-top:1px solid var(--line); margin:44px 0; }
+  footer { border-top:1px solid var(--line); padding:26px 0 40px; font-family:var(--mono);
+    font-size:0.74rem; letter-spacing:0.08em; color:var(--dim); }
+  footer a { color:var(--steel); }
+  footer a:hover { color:var(--amber-2); }
+
+  h3 { font-family:var(--mono); font-weight:700; font-size:1.02rem; letter-spacing:0.03em;
+       margin:34px 0 12px; color:var(--amber-2); text-transform:uppercase; }
+  h3::before { content:"> "; color:var(--amber); }
+  td code { word-break:break-all; }
+  .tldr { margin-bottom:26px; }
+  blockquote { border-left:3px solid var(--amber); margin:0 0 20px; padding:6px 18px;
+               color:var(--steel); background:var(--panel); }
+
+</style>
+</head>
+<body>
+<div class="hud"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i></div>
+<div class="wrap">
+  <div class="bar">
+    <div class="sig"><a href="/">RID</a> <span style="color:var(--dim);letter-spacing:0.08em;font-weight:500;">/ THE CARDBOARD SUPERCOMPUTER</span></div>
+    <a class="bar-home" href="https://rebelintelligencedetachment.com/">REBELINTELLIGENCE.DETACHMENT.COM</a>
+  </div>
+
+<article>
+  <div class="eyebrow">FIELD LOG <b>002</b> · 2026-11-10 · LOCAL AI / THE BOX</div>
+  <h1>Expanding Integration: Using the Whole Machine to Upgrade to <span class="d">180B</span></h1>
+
+<div class="tldr"><strong>TL;DR:</strong> Qwen3.8-Flash-Next — <strong>177B total, ~3B active</strong> — at UD-IQ4_XS, <strong>196,608 context</strong>, on the same $376 Radeon Pro V620. It does not fit in 32 GB of VRAM. It does not fit in 32 GB of RAM either. It fits because the machine stops pretending VRAM is the only memory: <strong>~21 GiB of hot experts in the card, ~34 GiB of warm experts pinned in RAM, the rest streamed from an NVMe</strong>, with a second GPU running the small models and the CPU running the vision encoder. Prefill at 90K went from <strong>194–222 tok/s to ~750</strong>, decode from <strong>~13 to 26–40 tok/s</strong>, and the eval harness from <strong>0.75 to 0.88–1.00</strong>. The upgrade was a 64 GB RAM kit, a memlock ceiling, and a serving engine that treats the whole box as one cache — not a bigger graphics card.</div>
+
+<hr />
+
+<h2>The 27B was never slow</h2>
+
+<p>The first post ended with a 2020 VDI card decoding a 27B Q6 model at <strong>30.5–32.2 tok/s</strong> with a 192K context, for $376 all in. That number is still real. What changed is what I was asking it to do.</p>
+
+<p>The 27B is a dense model. Every token runs through all 27 billion parameters, which is why it is fast and predictable — and why it has a ceiling. On the same nine-task harness I use to compare local models, it scored <strong>0.75</strong>. It got the three-word instruction, the JSON keys, the code fix, both Godot tasks, and a 50K-token needle. It missed the two tasks that needed actual reasoning: the maximum-cuts puzzle (it answered 8; the answer is 7) and the pump arithmetic (1.2 instead of 2.0). Its config also runs <code>--reasoning off</code>, because chain-of-thought was costing 50–100 tokens per answer and I was optimizing tok/s like an idiot.</p>
+
+<p>And the 27B&rsquo;s setup has no eyes. No vision projector, no second opinion, no way to look at a screenshot of the game it just wrote. For a coding agent that is a bigger deal than the benchmark score.</p>
+
+<h2>What a &ldquo;180B&rdquo; model actually means</h2>
+
+<p>Qwen3.8-Flash-Next is <strong>177B parameters total, with about 3B active per token</strong>. Round it to 180B for the title; the router only fires a slice of the experts on any given token. That is why a model 6.5× larger than the 27B can decode at the same order of speed: per-token compute is in the same class, and the rest is memory bandwidth.</p>
+
+<p>There is a second wrinkle that matters more than the parameter count. About <strong>51B of those parameters are not conventional weights at all</strong> — they are a per-layer n-gram lookup table (the PLE), a giant embedding that is mostly cold. In the UD-IQ4_XS build it is packed into the same 87.25 GiB file, but the hot set is much smaller than the file.</p>
+
+<table>
+<thead>
+<tr>
+<th> Tier </th>
+<th> Capacity </th>
+<th> What lives there </th>
+<th> Why </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> <strong>V620 VRAM</strong> </td>
+<td> 32 GB </td>
+<td> <strong>~21.19 GiB expert cache</strong> + KV cache + activations </td>
+<td> the experts the router actually hits, per token </td>
+</tr>
+<tr>
+<td> <strong>System RAM</strong> </td>
+<td> 64 GB </td>
+<td> <strong>34.31 GiB of experts, page-locked</strong> (33.04 after the vision/KV change) </td>
+<td> the next-most-likely experts, one PCIe hop away </td>
+</tr>
+<tr>
+<td> <strong>NVMe</strong> </td>
+<td> 87.25 GiB model </td>
+<td> cold experts and the PLE table </td>
+<td> streamed on demand; the long tail </td>
+</tr>
+<tr>
+<td> <strong>RX 9060 XT</strong> </td>
+<td> 16 GB </td>
+<td> Qwen3-8B subagents, Gemma vision </td>
+<td> keeps the agent alive while the V620 is claimed </td>
+</tr>
+<tr>
+<td> <strong>CPU</strong> </td>
+<td> 16 threads </td>
+<td> vision encoder, some prefill </td>
+<td> the parts that do not need a GPU </td>
+</tr>
+</tbody>
+</table>
+
+
+<p>That table is the whole article. The model is 87 GiB. The machine has 32 GB of VRAM, 64 GB of RAM, 16 GB of second-GPU VRAM, and 87 GB of fast disk. Nothing individually fits it; the hierarchy does.</p>
+
+<h2>The upgrade, in order</h2>
+
+<h3>1. The RAM, because the card was starving</h3>
+
+<p>The first version ran with 32 GB of system RAM and an 8 GiB page-locked expert tier. It worked, barely: prefill <strong>194–222 tok/s</strong> at 90K, decode <strong>~13 tok/s</strong>, and one crash in three under sustained long-context load. The crashes were not thermal — a repaste and a stock-voltage run had already proven that, with a failure at 52 °C junction and 187 W. They were host memory pressure: the kernel reclaiming pages the GPU had pinned.</p>
+
+<p>The 64 GB kit (4 × 16 GB DDR4) changed the operating point. <strong>62.7 GiB usable</strong>, all four sticks seen, no MCE, no EDAC, no amdgpu faults. But the BIOS came up on JEDEC defaults — <strong>29 GB/s</strong>, which is DDR4-2133, not the 2933 the kit is rated for. DOCP did not survive the DIMM change. That is still on the list.</p>
+
+<p>The tier went <strong>8 → 30 → 35 GiB</strong>. At 30 GiB the engine logged <strong>13,289 of 34.31 GiB</strong> resident and still read 25.4 GiB from disk. At 35 GiB it pinned the whole pool:</p>
+
+<pre><code>FileExpertSource: mapped pinned cache complement ready: resident 34.31 GiB, pinned 34.31 GiB
+
+</code></pre>
+
+<p>That required raising the hard <code>RLIMIT_MEMLOCK</code> from <strong>32 GiB to 40 GiB</strong> — asking for more than the limit does not fail loudly, it just silently declines to pin. The unit got <code>LimitMEMLOCK=40G</code>, the running user manager got <code>prlimit</code>ed, and the engine got <code>--resident-budget-gib 35</code>.</p>
+
+<p>The only new part in this whole upgrade was the <strong>64 GB kit: under $200</strong> (~$3.13/GB for a matched 4 × 16 GB DDR4-3000 set). The V620, the 9060 XT, and the NVMe were already in the box. The 180B did not cost $1,000; it cost a RAM upgrade and a weekend of tuning.</p>
+
+<h3>2. The tier moved decode, not prefill</h3>
+
+<p>Three cold ~90K-token prefills, fresh nonce each time, 90 s cooldown:</p>
+
+<table>
+<thead>
+<tr>
+<th> Tier </th>
+<th> Prefill </th>
+<th> Decode @90K </th>
+<th> Disk read, first request </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> 8 GiB </td>
+<td> 194–222 tok/s </td>
+<td> ~13 tok/s </td>
+<td> — </td>
+</tr>
+<tr>
+<td> 30 GiB </td>
+<td> 743–754 tok/s </td>
+<td> 21.8–27.9 tok/s </td>
+<td> 73 GB cold, then ~0.3 GB </td>
+</tr>
+<tr>
+<td> 35 GiB (full) </td>
+<td> 747–754 tok/s </td>
+<td> 25.7–40.4 tok/s </td>
+<td> same </td>
+</tr>
+</tbody>
+</table>
+
+
+<p><strong>Prefill did not move between 30 and 35 GiB at all.</strong> That settles what the remaining limit is: not the disk. At 30 GiB the same three passes read 8.2 GB, then 0.29 GB, then 0.27 GB off the NVMe and still ran 743–754 tok/s. Disk traffic varied by 30× with no effect on wall time. Prefill at 90K is <strong>attention/compute-bound</strong>. The ×3.5 win came from getting the decode hot set out of the way, not from making prefill read less.</p>
+
+<p>The one real cost: <code>available</code> fell from 23–24 GiB to <strong>19 GiB</strong>, inside the sub-22 GiB band where the kernel starts evicting pages as fast as they fault in. It did not bite — passes 2 and 3 pulled only ~130–180 MB off disk, so the page cache still held the file-tier experts, and <strong>0/3 crashed</strong>. But it is why 35 GiB is the ceiling: the next GiB comes out of page cache and buys nothing.</p>
+
+<h3>3. The rest of the box</h3>
+
+<ul>
+<li><strong>Context:</strong> 196,608 tokens, <code>--kv int8</code>, with <strong>32K of KV resident</strong> in RAM. The 27B also does 192K; the 180B does it with a hierarchy behind it.</li>
+<li><strong>Vision:</strong> a CPU image encoder. It answered a real photograph — a dual-socket motherboard — in <strong>6.2 s</strong>, 95 tokens. Setup leaves vision off by default; <code>--vision cpu</code> is the flag that turns it on.</li>
+<li><strong>Speculative decoding:</strong> MTP with <code>--spec 4</code>, min-p 0.5. On the 27B the MTP head accepted <strong>33/36 (92%)</strong>; on Flash Next the decode speedup is concentrated in code and structured output, not prose.</li>
+<li><strong>Serving:</strong> a systemd user unit, <code>Restart=on-failure</code>, starts at boot. Cold load is <strong>98 s</strong>; a warm 27B load is <strong>22 s</strong>. The card is exclusive: Strata&rsquo;s 21 GiB expert cache leaves ~600 MiB free, so the 27B and Flash Next cannot be resident together. The 9060 XT is the escape hatch — Qwen3-8B at <strong>52 tok/s</strong>, two 48K slots, on the card Strata does not touch.</li>
+</ul>
+
+
+<h2>The flags that make it fit</h2>
+
+<p>The serving engine is Strata, not llama.cpp. The args that matter:</p>
+
+<pre><code class="language-bash">strata serve \
+  --pack /mnt/ai-fast/strata-data/packs/unsloth-ud-iq4_xs \
+  --native .../Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf \
+  --expert-cache auto \
+  --max-context 196608 \
+  --kv int8 --kv-resident 32768 \
+  --resident-budget-gib 35 \
+  --spec 4 --spec-min-p 0.5 --mtp /mnt/ai-fast/strata-data/mtp/rt \
+  --vision --vram-reserve-mib 768
+
+</code></pre>
+
+<p><code>--resident-budget-gib</code> must sit <strong>under</strong> the hard memlock ceiling, or it silently declines to pin. <code>--vram-reserve-mib 768</code> is the measured fix for the engine&rsquo;s VRAM accounting; without it, the last allocation can fail. <code>--kv-resident 32768</code> moves 1.8 GB of KV to RAM, which frees VRAM for the expert cache — a good trade once you have the RAM.</p>
+
+<h2>The numbers</h2>
+
+<h3>Speed</h3>
+
+<table>
+<thead>
+<tr>
+<th> </th>
+<th> 27B Q6_K </th>
+<th> Flash Next UD-IQ4_XS </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> Decode, short prompt </td>
+<td> 30.5–32.2 tok/s </td>
+<td> 26.2–39.0 tok/s </td>
+</tr>
+<tr>
+<td> Decode at 90K </td>
+<td> — </td>
+<td> 25.7–40.4 tok/s </td>
+</tr>
+<tr>
+<td> Prefill, 50K needle </td>
+<td> 130.6 s </td>
+<td> 232.8 s before tuning </td>
+</tr>
+<tr>
+<td> Prefill, 90K probe </td>
+<td> — </td>
+<td> 743–754 tok/s after the RAM upgrade </td>
+</tr>
+<tr>
+<td> Context </td>
+<td> 196,608 </td>
+<td> 196,608 </td>
+</tr>
+<tr>
+<td> Vision </td>
+<td> none </td>
+<td> CPU encoder, 6.2 s/photo </td>
+</tr>
+<tr>
+<td> Wall clock, short task </td>
+<td> <strong>0.7–2.9 s</strong> </td>
+<td> <strong>12–33 s</strong> </td>
+</tr>
+</tbody>
+</table>
+
+
+<p>Flash Next is <strong>slower per task</strong>, often by an order of magnitude, because it reasons before it answers and the 27B does not. That is the trade. If you want the fastest answer to a one-line question, the 27B wins. If you want the answer that is more likely to be correct, the 180B wins.</p>
+
+<h3>Quality</h3>
+
+<p>Same harness, temperature 0, seed 1234, one repeat for the 27B and three for Flash Next:</p>
+
+<table>
+<thead>
+<tr>
+<th> Task </th>
+<th> 27B Q6_K </th>
+<th> Flash Next IQ4_XS </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> <code>reason_cuts_max</code> (corrected) </td>
+<td> ✗ 8 vs 7* </td>
+<td> ✓ 7 </td>
+</tr>
+<tr>
+<td> <code>instr_three_words</code> </td>
+<td> ✓ </td>
+<td> ✓ </td>
+</tr>
+<tr>
+<td> <code>struct_json_keys</code> </td>
+<td> ✓ </td>
+<td> ✓ </td>
+</tr>
+<tr>
+<td> <code>math_pumps</code> </td>
+<td> ✗ 1.2 vs 2.0 </td>
+<td> ✓ 2.0 </td>
+</tr>
+<tr>
+<td> <code>code_fix_median</code> </td>
+<td> ✓ </td>
+<td> ✓ </td>
+</tr>
+<tr>
+<td> <code>gd_node2d_move</code> </td>
+<td> ✓ </td>
+<td> ✓ </td>
+</tr>
+<tr>
+<td> <code>gd_player_controller</code> </td>
+<td> ✓ </td>
+<td> ✓ </td>
+</tr>
+<tr>
+<td> <code>longctx_recall_50</code> </td>
+<td> ✓ 130.6 s </td>
+<td> ✓ 232.8 s </td>
+</tr>
+<tr>
+<td> <strong>Overall</strong> </td>
+<td> <strong>0.75</strong> </td>
+<td> <strong>0.88 → 1.00</strong> </td>
+</tr>
+</tbody>
+</table>
+
+
+<p>* The 27B&rsquo;s re-run on the corrected task failed with HTTP 500 because Strata was holding the V620. Its original answer, 8, was wrong under either reading of the question. The corrected task is the one that makes 7 the true maximum.</p>
+
+<p>The single likeliest source of the gap is not the parameter count. It is that <strong>Flash Next reasons by default and the 27B runs <code>--reasoning off</code></strong>. The honest experiment — turn reasoning on for the 27B and re-run — is still on the list, and it requires stopping Strata first.</p>
+
+<h2>The test that matters: Hellbound: Lost</h2>
+
+<p>Benchmarks are clean. A game is not. <em>Hellbound: Lost</em> is the vertical slice I used as the real capability test, and its history is messier than I remembered.</p>
+
+<p><strong>October 7 — the 27B builds v1.</strong> One session, <strong>115 steps, about an hour</strong>, from a one-page brief: first-person controller, O2 and bleed meters, a Diablo-style grid inventory, a tool belt, a scavenge/deposit/quota loop, a placeholder warehouse, and a five-assertion in-game check. <strong>19 files, 3,052 lines</strong>, including a 658-line scene generator. It was complete and playable. It was also shallow: a static box level, no procedural generation, no reasoning about the design.</p>
+
+<p><strong>October 15 — Flash Next tries the same rebuild and dies.</strong> Same prompt, from scratch. The engine exited <code>-15</code> at 20:28:57 with <code>verify: timed out</code> at layers 45, 4, 1, 2 and 27 — the KFD/userptr stall documented in the Strata notes. A second attempt on October 17 stopped mid-scene-write. The model was not the thing that failed; the serving stack was.</p>
+
+<p><strong>October 24 — the rebuild that landed was cloud DeepSeek v4 flash.</strong> I need to say that plainly, because I spent this article arguing for local. The same rebuild prompt, retried on the cloud model, produced the procedural 15×11 maze, the hand-map loader, the compass-as-found-tool, and <strong>205–211 checks</strong>. The local 180B could not finish the job in October because the engine kept dying, not because it could not write the code.</p>
+
+<p><strong>October 27–30 — Flash Next ships the expansion.</strong> Once the card was stable, the local model did the long multi-session work: controller and mobile input, the camp, the second contract, the site plan, the merged guardian, <strong>687 → 713 automated checks</strong>, and an APK. The current slice is <strong>63 GDScript files, 13,971 lines, 16 scenes</strong>. That is the capability that matters for an agent: not one impressive answer, but days of coherent work across sessions without losing the design.</p>
+
+<p>So the honest comparison is not &ldquo;27B built it, Flash Next remade it.&rdquo; It is:</p>
+
+<ul>
+<li><strong>27B:</strong> a genuine one-shot build — fast, complete, shallow.</li>
+<li><strong>Flash Next:</strong> a failed rebuild while the stack was unstable, then a sustained expansion once it was not. The 713-check version is the one that exists today.</li>
+<li><strong>The clean capability number</strong> is the harness: 0.75 vs 0.88–1.00, with the reasoning caveat.</li>
+</ul>
+
+
+<h2>The Diner of the Dead head-to-head</h2>
+
+<p>The Hellbound history is a real-world test, but it is not a controlled one. So I ran the same brief through both models from an empty project: the full 7,768-character <em>Diner of the Dead</em> implementation spec, the same 12 MB GLB/texture pack, the same four tools (<code>bash</code>, <code>read_file</code>, <code>write_file</code>, <code>finish</code>), temperature 0.2, and a two-hour wall clock. The only variable was the model. The V620 was handed over between runs with <code>POST /unload</code> and <code>POST /load</code>; nothing else on the box changed.</p>
+
+<p>Two protocol notes. The 27B got a 4,096-token response cap and never hit it. Flash Next&rsquo;s reasoning is billed against the same budget, and on its first attempts it spent the entire budget thinking and returned no tool call — so the harness <strong>doubled the budget after any length-truncated turn</strong> (8,192 → 16,384 → 32,768) and told the model to stop planning and take a concrete action. The reasoning stayed on. And the 27B was stopped at <strong>25 minutes</strong>, not two hours: it had made <strong>47 identical failed edits</strong> to the same file, and the second hour was not going to be different. Flash Next got the full window.</p>
+
+<h3>Same brief, same tools, different animals</h3>
+
+<table>
+<thead>
+<tr>
+<th> </th>
+<th> 27B Q6_K </th>
+<th> Flash Next IQ4_XS </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> Wall clock </td>
+<td> <strong>24.5 min</strong> (stopped: 47-edit loop) </td>
+<td> <strong>84.1 min</strong> (finished) </td>
+</tr>
+<tr>
+<td> Model steps </td>
+<td> 65 </td>
+<td> 95 </td>
+</tr>
+<tr>
+<td> Tool calls </td>
+<td> 69 </td>
+<td> 99 </td>
+</tr>
+<tr>
+<td> Output tokens </td>
+<td> 34,711 </td>
+<td> 131,330 </td>
+</tr>
+<tr>
+<td> GDScript files / lines </td>
+<td> 11 / 1,579 </td>
+<td> 11 / 3,131 </td>
+</tr>
+<tr>
+<td> Scenes </td>
+<td> 1 </td>
+<td> 8 </td>
+</tr>
+<tr>
+<td> Headless import </td>
+<td> <strong>14 errors</strong> </td>
+<td> <strong>clean</strong> </td>
+</tr>
+<tr>
+<td> Boot + wave 1 </td>
+<td> <strong>fails to parse</strong> </td>
+<td> <strong>boots; 8 zombies, 50 collision boxes, 0 fallbacks</strong> </td>
+</tr>
+<tr>
+<td> README </td>
+<td> missing </td>
+<td> 12 KB </td>
+</tr>
+<tr>
+<td> Acceptance check </td>
+<td> <strong>fail</strong> </td>
+<td> <strong>pass</strong> </td>
+</tr>
+</tbody>
+</table>
+
+
+<p>The 27B built a game-shaped thing fast. It had every feature in the spec — three weapons, wall-buys, three enemy types, touch and controller input, points, waves — and it could not run. The parse errors are Godot 4 API errors: <code>intersect_ray()</code> called with five arguments instead of a <code>PhysicsRayQueryParameters3D</code>, <code>instantiate()</code> called on a <code>Node3D</code>, <code>DisplayServer.is_mouse_available()</code> which does not exist in 4.7. It spent the last 11 minutes making <strong>47 identical edits</strong> to <code>weapon.gd</code>, getting the same parse error back each time. It never wrote a README.</p>
+
+<p>In the crude harness, Flash Next spent <strong>3.4× the wall clock and 3.8× the output tokens</strong>, and it burned two full reasoning budgets (one at 4K, one at 8K) before it wrote a file. Then it built a modular project: eight scenes, 3,131 lines, a 12 KB README, 50 collision boxes, and a wave loop that actually spawns zombies. It also ran <strong>cooler — 59–74 °C against the 27B&rsquo;s 90–100 °C</strong> — because only ~3B parameters are active per token. In this workload, the bigger model is easier on the card.</p>
+
+<p>The 27B was not stupid. It produced every feature in the spec, a coherent <code>project.godot</code> with a full input map, and 1,579 lines in 25 minutes. It knew what the game needed. What it could not do was check its API calls against Godot 4.7 — and it could not break out of the loop when the same error came back 47 times. That is less a verdict on the model than on the four tools I gave it.</p>
+
+<h3>The retry: both models through a real agent harness</h3>
+
+<p>The four-tool loop was judging the 27B on tools I wrote in an afternoon. So I ran the same brief through <strong>DSH&rsquo;s actual agent loop</strong> for both models — the same <code>edit</code>, <code>read</code>, <code>todo</code>, line-numbered file views, web access and verification prompt; the same two-hour window, asset pack and spec.</p>
+
+<table>
+<thead>
+<tr>
+<th> </th>
+<th> 27B, DSH </th>
+<th> Flash Next, DSH </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> Wall clock </td>
+<td> <strong>65.0 min</strong> </td>
+<td> <strong>75.4 min</strong> </td>
+</tr>
+<tr>
+<td> Steps </td>
+<td> 236 </td>
+<td> 86 </td>
+</tr>
+<tr>
+<td> Tool calls </td>
+<td> 235 </td>
+<td> 89 </td>
+</tr>
+<tr>
+<td> GDScript lines </td>
+<td> <strong>1,846</strong> </td>
+<td> <strong>2,040</strong> </td>
+</tr>
+<tr>
+<td> Scenes </td>
+<td> 6 </td>
+<td> 8 </td>
+</tr>
+<tr>
+<td> Headless import </td>
+<td> clean </td>
+<td> clean </td>
+</tr>
+<tr>
+<td> Boot + wave 1 </td>
+<td> spawns </td>
+<td> spawns </td>
+</tr>
+<tr>
+<td> Acceptance </td>
+<td> <strong>pass</strong> </td>
+<td> <strong>pass</strong> </td>
+</tr>
+</tbody>
+</table>
+
+
+<p>Both finished. The 27B was <strong>14% faster</strong> and wrote <strong>10% less code</strong>; Flash Next wrote two more scenes and spent six tool calls fetching Godot&rsquo;s actual source to check API signatures. The 27B also wrote the 5 KB README the spec asked for; Flash Next skipped it. (The 27B README&rsquo;s controller table is optimistic — its actual pad map is documented below.) The gap that looked like 3.4× wall clock and 3.8× output tokens in the crude harness collapsed to <strong>16% wall clock and 10% code</strong>. I stopped each run once its artifact passed the acceptance check; both were polishing, not fixing a broken build.</p>
+
+<p>The four-tool loop&rsquo;s 47-edit failure was not a model verdict. With <code>edit</code>, line-numbered <code>read</code> and a verification loop, the 27B could see the exact parse error, change <strong>one line</strong>, and rerun. It took 236 small steps and 65 minutes; my loop gave it a <code>write_file</code> hammer and a nudge, and it spent 47 turns hitting the same <code>intersect_ray</code> error.</p>
+
+<p>So what does the 180B actually buy? Not raw code volume on a one-shot build. It buys the eval score (<strong>0.75 → 0.88–1.00</strong>), vision, a 196K context that stays coherent, and the multi-session Hellbound expansion. Those are the capabilities that survived the harness correction. The 27B, given the same tools, is a competent one-shot builder.</p>
+
+<p><strong>The 27B can finish; the 180B can finish more. The harness decides which of those sentences you get to write.</strong></p>
+
+<h3>Controller layouts (documentation, not a result)</h3>
+
+<p>The builds share assets, not input stacks. The 27B&rsquo;s pad map is the weak point: all four movement actions sit on left-stick X, so the stick cannot move forward/back independently; look is on LT/RT rather than the right stick; fire is B/L3; reload is A/X; interact is A/Y; weapon cycling is Back/Guide. Flash Next is conventional — left stick move, right stick look, RT fire, LB reload — with one collision: B is bound to both fire and reload, and it has no gamepad sprint. On touch, both use a left-half joystick and right-half drag-look; the 27B&rsquo;s FIRE is tap-only (its automatic rifle needs repeated taps), while Flash Next&rsquo;s FIRE presses the real action and holds.</p>
+
+<p>The full mapping, including touch button positions and the 27B&rsquo;s README-vs-actual discrepancies, is in <a href="controller-layouts/">the controller layouts</a>. These are code-reading notes; the head-to-head results above are unchanged.</p>
+
+<h3>Phone playtest (the acceptance test that matters)</h3>
+
+<p>Both debug APKs were installed on a Galaxy Z Fold5 and played with a controller.</p>
+
+<ul>
+<li><strong>27B:</strong> the player has <strong>no collision</strong> — it walks through the diner geometry. The death screen shows a <strong>RESTART</strong> button, but pressing it does nothing. Reload and most other features could not be reached because the pad layout made the game unplayable.</li>
+<li><strong>Flash Next:</strong> <strong>almost playable</strong>. Right-stick look turns <strong>incrementally</strong>: each stick movement rotates the camera, but holding the stick does not keep turning. The death-screen restart works, and reload works.</li>
+</ul>
+
+
+<p>The headless acceptance check proves the project imports, boots and spawns a wave. It does not prove collision, UI buttons or continuous look. The DSH results above are unchanged; this is what the builds do on a phone. Finished is not the same as playable.</p>
+
+<h3>Try them</h3>
+
+<p>Both debug APKs are in this post&rsquo;s directory and linked below. They install side by side (different package names), are <strong>arm64, min SDK 24, debug-signed</strong>, and are the <strong>exact builds from the DSH run</strong> — not rebuilt after the playtest.</p>
+
+<table>
+<thead>
+<tr>
+<th> Build </th>
+<th> APK </th>
+<th> Size </th>
+<th> SHA-256 </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> 27B </td>
+<td> <a href="Diner-27B-debug.apk" download>Diner-27B-debug.apk</a> </td>
+<td> 32 MB </td>
+<td> <code>f4c1615be2f527288b256069fcfe50f314d5a49e5d83f339df74bede5403ad8c</code> </td>
+</tr>
+<tr>
+<td> Flash Next </td>
+<td> <a href="Diner-FlashNext-debug.apk" download>Diner-FlashNext-debug.apk</a> </td>
+<td> 32 MB </td>
+<td> <code>6281a71a2875bb80078d3a320e28507c1f6c99d1301eeda3ce729f732d2f8187</code> </td>
+</tr>
+</tbody>
+</table>
+
+
+<p>Android will warn about installing from an unknown source; the debug signature is expected.</p>
+
+<h2>What the whole machine buys (measured)</h2>
+
+<p>The Diner prompt is the real workload, so I measured that — through DSH, not a bare API probe. Each run started a fresh <code>dsh --profile headless</code> session whose task was the same 7.8 KB Diner spec used in the head-to-head, with the DSH system prompt and tool schemas in the loop. I stopped after the first step, and took the timings from the servers themselves (llama.cpp&rsquo;s <code>print_timing</code> and Strata&rsquo;s request log), after a model reload with <strong>zero prefix cache</strong>.</p>
+
+<table>
+<thead>
+<tr>
+<th> Cold first DSH step </th>
+<th> 27B, V620 only </th>
+<th> Flash Next, whole machine </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> Model </td>
+<td> 27B dense, Q6_K </td>
+<td> 177B-A3B MoE, IQ4_XS </td>
+</tr>
+<tr>
+<td> Prompt tokens </td>
+<td> 8,149 </td>
+<td> 7,957 </td>
+</tr>
+<tr>
+<td> Prefill </td>
+<td> 23.94 s / <strong>340.3 tok/s</strong> </td>
+<td> 16.0 s / <strong>497 tok/s</strong> </td>
+</tr>
+<tr>
+<td> TTFT </td>
+<td> <strong>24.0 s</strong> </td>
+<td> <strong>16.0 s</strong> </td>
+</tr>
+<tr>
+<td> Decode </td>
+<td> <strong>32.66 tok/s</strong> </td>
+<td> <strong>32.5 tok/s</strong> </td>
+</tr>
+<tr>
+<td> First-step output </td>
+<td> 109 tok (tool call) </td>
+<td> 385 tok (thinking + tool calls) </td>
+</tr>
+<tr>
+<td> First-step total </td>
+<td> 27.5 s </td>
+<td> 29.7 s </td>
+</tr>
+<tr>
+<td> Observed junction </td>
+<td> 90–100 °C </td>
+<td> 60–75 °C </td>
+</tr>
+<tr>
+<td> Prefix cache </td>
+<td> 0 </td>
+<td> 0 </td>
+</tr>
+</tbody>
+</table>
+
+
+<p>TTFT is server prompt-eval plus one decode step. The 2.4% prompt-token difference is the DSH system prompt naming a different model.</p>
+
+<p>Three things fall out of that table.</p>
+
+<p><strong>1. The 180B is not slower to first token — it is faster.</strong> On the same real prompt, the 177B model prefills at <strong>497 tok/s</strong> against the dense 27B&rsquo;s <strong>340 tok/s</strong>, and reaches its first token <strong>8 seconds sooner</strong>. Decode is a tie: 32.5 vs 32.66 tok/s. The reason is sparsity: only ~3B parameters are active per token, so the bigger model does less prefill math than the dense 27B. The 32 GB card alone could never hold it; the RAM tier and NVMe are what let the sparse model be <em>faster</em> than the smaller dense one.</p>
+
+<p><strong>2. What that buys is capability, not throughput.</strong> The 180B is the model that scored <strong>0.75 → 0.88–1.00</strong>, sees images, holds 196K context, and carried the multi-session Hellbound expansion. The 27B is the simpler machine — 22 GB of VRAM, one binary, no RAM tier — and it is the one that cannot run the 177B at all. The whole machine&rsquo;s payoff is that the capability arrives without a TTFT penalty; on this prompt it is a TTFT win.</p>
+
+<p><strong>3. The first step still takes longer, because the 180B thinks more.</strong> It generated 385 tokens (reasoning plus tool calls) against the 27B&rsquo;s 109, so its first step finishes in 29.7 s vs 27.5 s even with the faster TTFT. That is the quality/speed trade in one line: the 180B gets to the first token sooner, then spends more tokens before it acts.</p>
+
+<p><strong>The trade in one line:</strong> the whole machine does not buy raw tok/s. It buys a <strong>6.5× larger model at the same decode rate and a faster first token</strong>, paid for in 64 GB of RAM, 34 GiB of it pinned, an 87 GB model on NVMe, and a much more complex serving stack.</p>
+
+<p>The warm-prefix case is different again. Once the DSH system prompt/tools/spec prefix is cached, TTFT collapses: the 27B&rsquo;s warm request had <strong>0.22 s</strong> prompt-eval for 4 new tokens, and Flash Next&rsquo;s warm decode measured <strong>47 tok/s</strong> on a cached prompt. The cold table above is the honest first-request cost; the warm numbers are what repeated DSH sessions actually feel like.</p>
+
+<p>Caveats: one cold run per model; timings are rounded server-log values; the 27B was thermally throttling at 90–100 °C; Flash Next&rsquo;s expert cache hit 84.5% on the cold request; and first-step output lengths differ, so decode rate — not total tokens — is the comparable metric. The 90K prefill figure elsewhere in this post is a warm, long-context probe; this table is the cold, real-prompt measurement.</p>
+
+<h2>What it costs</h2>
+
+<ul>
+<li><strong>Disk:</strong> 87.25 GiB for the model, plus the engine and the vision encoder. Budget ~95 GB, and keep it on an SSD — the file tier is memory-mapped.</li>
+<li><strong>RAM:</strong> 35 GiB page-locked, plus page cache. 32 GB is not enough; 64 GB is the operating point.</li>
+<li><strong>Speed:</strong> 12–33 s per short task against 0.7–2.9 s for the 27B. In the Diner build, the mean response was <strong>48 s</strong> and the worst was <strong>267 s</strong>. You feel it in a chat loop. You stop feeling it when the task is a 40-minute refactor.</li>
+<li><strong>Exclusivity:</strong> one big model on the V620. The 27B cannot load while Strata holds the card. Plan the switch, or put the small model on the second GPU.</li>
+<li><strong>Stability:</strong> the stock-voltage run was <strong>0/3 crashes</strong>, against 1/3 and 2/3 before. That is n=3 — strongly suggestive, not proof. The pin fix removed the verify timeouts; the engine watchdog can still abort under memory starvation.</li>
+<li><strong>Thermals:</strong> the V620 is a passively cooled server card behind a printed shroud and a manual fan wall. It throttles itself near 100 °C junction. On a warm start the 27B hit <strong>100 °C at 244 W</strong>; the first long step crawled, then the card settled at <strong>~94 °C and ~32 tok/s</strong>. The 180B&rsquo;s October baseline was <strong>78 °C at 252 W</strong> after the repaste. If the card idles hot, check the fan controller before blaming the model.</li>
+<li><strong>RAM speed:</strong> 29 GB/s means DOCP is still off. Re-enabling it is a separate experiment and should not share a window with a stability test.</li>
+<li><strong>RAM integrity:</strong> 3 of 9 runs flagged exactly one byte at a fixed page+offset, all near an OOM kill; six consecutive runs since are clean. A MemTest86 pass is still owed.</li>
+<li><strong>Quantization:</strong> IQ4_XS is a 4-bit build. It passed every task the 27B passed and two it did not, but &ldquo;4-bit 177B&rdquo; is not &ldquo;BF16 177B&rdquo;. The PLE table is the part I would quantize last.</li>
+</ul>
+
+
+<h2>Why this is &ldquo;expanding integration&rdquo;</h2>
+
+<p>The 27B post was about a card. This one is about the space between the card, the RAM, the disk, and the second GPU. The model did not get faster because I bought a bigger GPU; it got <em>possible</em> because the serving engine stopped treating VRAM as the only place a weight can live.</p>
+
+<p>That is the actual upgrade: <strong>a memory hierarchy, a memlock ceiling, and a scheduler that knows which expert is hot.</strong> The 180B is not running on a $376 card because the card is magic. It is running because 21 GiB of it is on the card, 34 GiB is in RAM, the rest is on an NVMe, and the engine moves the right piece to the right place at the right time.</p>
+
+<p>The 27B proved the hardware. The 180B proves the integration.</p>
+
+<p class="manifesto">Software is easy. Buy more hardware — then teach it to use all of it.</p>
+
+</article>
+
+<footer>
+  <div class="wrap" style="padding:0;">
+    REBEL INTELLIGENCE DETACHMENT · GREEN BAY, WI · <a href="mailto:info@rebelintelligencedetachment.com">INFO@REBELINTELLIGENCEDETACHMENT.COM</a> · <a href="https://rebelintelligencedetachment.com">RID-HQ</a>
+  </div>
+</footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Diner of the Dead — controller layouts as shipped · The Cardboard Supercomputer · RID</title>
+<meta name="description" content="Read-only mapping of the 27B and Flash Next Diner builds: gamepad, keyboard and touch controls, README-vs-actual discrepancies, and the phone playtest." />
+<meta name="theme-color" content="#070B16" />
+<link rel="canonical" href="https://blog.rebelintelligencedetachment.com/posts/expanding-integration/controller-layouts/" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Diner of the Dead — controller layouts as shipped" />
+<meta property="og:description" content="Read-only mapping of the 27B and Flash Next Diner builds: gamepad, keyboard and touch controls, README-vs-actual discrepancies, and the phone playtest." />
+<meta property="og:image" content="https://blog.rebelintelligencedetachment.com/assets/box-hero-front.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --void:#070B16; --void-2:#04060D; --panel:#0c1421; --panel-2:#0e1626;
+    --line:#1c2637; --line-2:#2a3a55;
+    --steel:#8a94a6; --text:#e8ecf4; --dim:#5c667a;
+    --amber:#ff8a3d; --amber-2:#ffa45c;
+    --mono:'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    --sans:'Hanken Grotesk', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body {
+    margin:0; font-family:var(--sans); color:var(--text); background:var(--void);
+    -webkit-font-smoothing:antialiased; line-height:1.65; overflow-x:hidden;
+    min-height:100vh; position:relative;
+  }
+  body::before {
+    content:""; position:fixed; inset:0; z-index:-2;
+    background:
+      linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 100% 48px,
+      linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 48px 100%;
+    opacity:0.35;
+    -webkit-mask-image: radial-gradient(120% 90% at 50% 0%, #000 55%, transparent 100%);
+            mask-image: radial-gradient(120% 90% at 50% 0%, #000 55%, transparent 100%);
+  }
+  body::after {
+    content:""; position:fixed; inset:0; z-index:-3;
+    background:
+      radial-gradient(50rem 34rem at 88% 108%, rgba(255,138,61,0.14), transparent 60%),
+      linear-gradient(180deg, var(--void) 0%, var(--void-2) 100%);
+  }
+  .hud { position:fixed; inset:18px; z-index:0; pointer-events:none; }
+  .hud i { position:absolute; width:22px; height:22px; border:2px solid var(--amber); opacity:0.55; }
+  .hud .tl { top:0; left:0; border-right:0; border-bottom:0; }
+  .hud .tr { top:0; right:0; border-left:0; border-bottom:0; }
+  .hud .bl { bottom:0; left:0; border-right:0; border-top:0; }
+  .hud .br { bottom:0; right:0; border-left:0; border-top:0; }
+  a { color:var(--amber-2); text-decoration:none; }
+  a:hover { color:var(--amber); }
+  .wrap { width:min(760px, 92vw); margin-inline:auto; position:relative; z-index:1; }
+  .bar { display:flex; align-items:center; justify-content:space-between; padding:26px 0; gap:16px; }
+  .sig { font-family:var(--mono); font-weight:700; letter-spacing:0.32em; font-size:0.86rem; color:var(--text); }
+  .sig a { color:inherit; }
+  .bar-home { font-family:var(--mono); font-size:0.78rem; letter-spacing:0.06em; color:var(--steel);
+    border:1px solid var(--line-2); padding:8px 14px; border-radius:2px; transition:border-color .2s, color .2s; }
+  .bar-home:hover { color:var(--amber-2); border-color:var(--amber); }
+  article { padding:clamp(30px,6vw,64px) 0 80px; }
+  .eyebrow { font-family:var(--mono); font-size:0.78rem; letter-spacing:0.22em; color:var(--dim); margin-bottom:20px; }
+  .eyebrow b { color:var(--amber); font-weight:500; }
+  h1 {
+    font-family:var(--mono); font-weight:700; letter-spacing:0.02em; line-height:1.08;
+    font-size:clamp(1.7rem,4.6vw,2.9rem); margin:0 0 26px; text-transform:uppercase;
+  }
+  h1 .d { color:var(--amber); }
+  h2 {
+    font-family:var(--mono); font-weight:700; font-size:1.22rem; letter-spacing:0.04em;
+    margin:56px 0 16px; text-transform:uppercase; color:var(--text);
+  }
+  h2::before { content:"// "; color:var(--amber); }
+  p { margin:0 0 18px; color:var(--text); }
+  .tldr {
+    background:var(--panel); border:1px solid var(--line-2); border-left:3px solid var(--amber);
+    padding:18px 20px; border-radius:4px; margin:0 0 30px; font-size:1.02rem;
+  }
+  .tldr b { color:var(--amber-2); }
+  img { width:100%; height:auto; border:1px solid var(--line-2); border-radius:4px; margin:10px 0 6px; display:block; }
+  figcaption { font-family:var(--mono); font-size:0.78rem; color:var(--dim); margin:0 0 24px; }
+  pre {
+    background:var(--panel-2); border:1px solid var(--line); border-radius:4px;
+    padding:18px 20px; overflow-x:auto; font-family:var(--mono); font-size:0.84rem;
+    line-height:1.6; color:var(--text); margin:0 0 22px;
+  }
+  code { font-family:var(--mono); font-size:0.88em; background:var(--panel-2); border:1px solid var(--line);
+    border-radius:3px; padding:1px 6px; color:var(--amber-2); }
+  pre code { background:none; border:none; padding:0; color:var(--text); }
+  table { width:100%; border-collapse:collapse; margin:0 0 22px; font-size:0.92rem; }
+  th { font-family:var(--mono); font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--dim); text-align:left; padding:10px 12px; border-bottom:1px solid var(--line-2); }
+  td { padding:9px 12px; border-bottom:1px solid var(--line); color:var(--text); }
+  tr:hover td { background:rgba(255,138,61,0.04); }
+  ul, ol { margin:0 0 20px; padding-left:22px; }
+  li { margin-bottom:10px; }
+  li::marker { color:var(--amber); }
+  .fine { font-size:0.88rem; color:var(--steel); }
+  .manifesto {
+    font-family:var(--mono); font-weight:700; font-size:1.3rem; color:var(--amber);
+    text-align:center; margin:56px 0 0; letter-spacing:0.03em;
+  }
+  hr { border:none; border-top:1px solid var(--line); margin:44px 0; }
+  footer { border-top:1px solid var(--line); padding:26px 0 40px; font-family:var(--mono);
+    font-size:0.74rem; letter-spacing:0.08em; color:var(--dim); }
+  footer a { color:var(--steel); }
+  footer a:hover { color:var(--amber-2); }
+
+  h3 { font-family:var(--mono); font-weight:700; font-size:1.02rem; letter-spacing:0.03em;
+       margin:34px 0 12px; color:var(--amber-2); text-transform:uppercase; }
+  h3::before { content:"> "; color:var(--amber); }
+  td code { word-break:break-all; }
+  .tldr { margin-bottom:26px; }
+  blockquote { border-left:3px solid var(--amber); margin:0 0 20px; padding:6px 18px;
+               color:var(--steel); background:var(--panel); }
+
+</style>
+</head>
+<body>
+<div class="hud"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i></div>
+<div class="wrap">
+  <div class="bar">
+    <div class="sig"><a href="/">RID</a> <span style="color:var(--dim);letter-spacing:0.08em;font-weight:500;">/ THE CARDBOARD SUPERCOMPUTER</span></div>
+    <a class="bar-home" href="https://rebelintelligencedetachment.com/">REBELINTELLIGENCE.DETACHMENT.COM</a>
+  </div>
+
+<article>
+  <div class="eyebrow">FIELD LOG <b>002</b> · APPENDIX · CONTROLLER LAYOUTS</div>
+  <h1>Diner of the Dead — <span class="d">controller layouts</span> as shipped</h1>
+
+<p>Read-only inspection of the two DSH builds. No game files were changed, and the<br/>
+head-to-head results are unchanged. This documents what each build actually<br/>
+binds and consumes, not what its README claims.</p>
+
+<p>Sources: <code>project.godot</code> input maps, <code>player.gd</code>, <code>touch_controls.gd</code>,<br/>
+<code>weapon.gd</code>, <code>main.gd</code>, <code>hud.gd</code> in each project.</p>
+
+<h2>At a glance</h2>
+
+<table>
+<thead>
+<tr>
+<th> </th>
+<th> 27B (DSH) </th>
+<th> Flash Next (DSH) </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> Left stick </td>
+<td> <strong>X only; all four move actions on axis 0; Y unused</strong> </td>
+<td> X/Y, normal </td>
+</tr>
+<tr>
+<td> Right stick </td>
+<td> X− = sprint; Y unused </td>
+<td> X/Y = look </td>
+</tr>
+<tr>
+<td> Look </td>
+<td> <strong>LT/RT triggers</strong> </td>
+<td> right stick, 0.18 deadzone </td>
+</tr>
+<tr>
+<td> Fire </td>
+<td> B or L3 </td>
+<td> RT+ or B </td>
+</tr>
+<tr>
+<td> Reload </td>
+<td> A or X </td>
+<td> LB or B </td>
+</tr>
+<tr>
+<td> Interact </td>
+<td> A or Y </td>
+<td> A, X or Y </td>
+</tr>
+<tr>
+<td> Weapon switch </td>
+<td> Back/Guide cycle </td>
+<td> D-pad Up/Left/Right; RB next </td>
+</tr>
+<tr>
+<td> Sprint </td>
+<td> right stick X−; keyboard Shift binding malformed </td>
+<td> keyboard Shift only </td>
+</tr>
+<tr>
+<td> Pause </td>
+<td> Start </td>
+<td> Start </td>
+</tr>
+<tr>
+<td> Touch fire </td>
+<td> tap one shot; no hold-auto </td>
+<td> hold, action-based </td>
+</tr>
+<tr>
+<td> Touch pause </td>
+<td> none </td>
+<td> none </td>
+</tr>
+</tbody>
+</table>
+
+
+<h2>27B — actual layout</h2>
+
+<h3>Keyboard / mouse</h3>
+
+<table>
+<thead>
+<tr>
+<th> Action </th>
+<th> Binding </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> Move </td>
+<td> WASD </td>
+</tr>
+<tr>
+<td> Look </td>
+<td> mouse (captured) </td>
+</tr>
+<tr>
+<td> Fire </td>
+<td> LMB </td>
+</tr>
+<tr>
+<td> Reload </td>
+<td> R </td>
+</tr>
+<tr>
+<td> Interact </td>
+<td> E </td>
+</tr>
+<tr>
+<td> Weapons </td>
+<td> 1 / 2 / 3 </td>
+</tr>
+<tr>
+<td> Sprint </td>
+<td> Shift — <strong>declared as an <code>InputEventKey</code> with <code>shift_pressed=true</code> but no keycode</strong>; not a normal Shift key event </td>
+</tr>
+<tr>
+<td> Pause </td>
+<td> Esc </td>
+</tr>
+</tbody>
+</table>
+
+
+<h3>Gamepad</h3>
+
+<table>
+<thead>
+<tr>
+<th> Input </th>
+<th> Action </th>
+<th> Notes </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> Left stick X− </td>
+<td> <code>move_forward</code> + <code>move_right</code> </td>
+<td> all four movement actions are on axis 0 </td>
+</tr>
+<tr>
+<td> Left stick X+ </td>
+<td> <code>move_back</code> + <code>move_left</code> </td>
+<td> same axis, opposite sign </td>
+</tr>
+<tr>
+<td> Left stick Y </td>
+<td> nothing </td>
+<td> no forward/back axis </td>
+</tr>
+<tr>
+<td> Right stick X− </td>
+<td> sprint </td>
+<td> </td>
+</tr>
+<tr>
+<td> Right stick Y </td>
+<td> nothing </td>
+<td> </td>
+</tr>
+<tr>
+<td> LT / RT </td>
+<td> look yaw / pitch </td>
+<td> code reads axes 4 and 5 directly, deadzone 0.1 </td>
+</tr>
+<tr>
+<td> B / L3 </td>
+<td> fire </td>
+<td> B is button 1; L3 is button 7 </td>
+</tr>
+<tr>
+<td> A / X </td>
+<td> reload </td>
+<td> </td>
+</tr>
+<tr>
+<td> A / Y </td>
+<td> interact </td>
+<td> <strong>A is both reload and interact</strong> </td>
+</tr>
+<tr>
+<td> Back </td>
+<td> cycle weapon prev </td>
+<td> </td>
+</tr>
+<tr>
+<td> Guide </td>
+<td> cycle weapon next </td>
+<td> Guide is usually intercepted by Steam/OS </td>
+</tr>
+<tr>
+<td> Start </td>
+<td> pause </td>
+<td> </td>
+</tr>
+<tr>
+<td> D-pad, LB, RB </td>
+<td> unbound </td>
+<td> no direct weapon slots </td>
+</tr>
+</tbody>
+</table>
+
+
+<p>The movement mapping is the important one. <code>player.gd</code> calls<br/>
+<code>Input.get_axis("move_left", "move_right")</code> and<br/>
+<code>Input.get_axis("move_forward", "move_back")</code>. Because all four actions sit on<br/>
+axis 0 with conflicting signs:</p>
+
+<ul>
+<li>push left → <code>move_forward</code> + <code>move_right</code> → strafe right <strong>and</strong> forward;</li>
+<li>push right → <code>move_back</code> + <code>move_left</code> → strafe left <strong>and</strong> back;</li>
+<li>push up/down → no action at all.</li>
+</ul>
+
+
+<p>The left stick cannot move forward/back independently. Keyboard WASD still works<br/>
+because those are separate key events; touch movement bypasses the actions via<br/>
+<code>set_touch_move()</code>.</p>
+
+<p>The README&rsquo;s controller table claims left-stick move, right-stick look, R2 fire,<br/>
+L1/X reload, A/Y interact, LB/RB cycle. The actual map is left-stick X movement,<br/>
+trigger look, B/L3 fire, A/X reload, A/Y interact, Back/Guide cycle.</p>
+
+<h3>Touch</h3>
+
+<ul>
+<li><strong>Left half:</strong> floating joystick, 120 px base, 60 px knob, 120 px travel.</li>
+<li><strong>Right half:</strong> drag to look; drag right looks left (&ldquo;grab the world&rdquo;).</li>
+<li><strong>Bottom-right:</strong> FIRE (140 px), RLD (100 px) to its left, USE (100 px) further<br/>
+left.</li>
+<li><strong>Bottom center-right:</strong> 1 / 2 / 3 weapon buttons (48 px).</li>
+<li>Touch UI is shown only when <code>DisplayServer.is_touchscreen_available()</code>; there<br/>
+is no desktop toggle.</li>
+<li><strong>FIRE is tap-to-shoot, not hold-to-fire.</strong> The button calls<br/>
+<code>weapon.start_firing()</code> directly, but <code>player.gd</code> polls the <code>fire</code> action every<br/>
+physics frame and calls <code>stop_firing()</code> because the touch button never presses<br/>
+that action. The pistol and shotgun fire once per tap; the automatic rifle<br/>
+needs repeated taps.</li>
+<li><strong>No touch pause.</strong> Pause is Start/Esc only; the HUD label even says<br/>
+&ldquo;PAUSED — Esc to resume&rdquo;.</li>
+</ul>
+
+
+<h2>Flash Next — actual layout</h2>
+
+<h3>Keyboard / mouse</h3>
+
+<table>
+<thead>
+<tr>
+<th> Action </th>
+<th> Binding </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> Move </td>
+<td> WASD </td>
+</tr>
+<tr>
+<td> Look </td>
+<td> mouse (captured) </td>
+</tr>
+<tr>
+<td> Fire </td>
+<td> LMB </td>
+</tr>
+<tr>
+<td> Reload </td>
+<td> R </td>
+</tr>
+<tr>
+<td> Interact </td>
+<td> E </td>
+</tr>
+<tr>
+<td> Weapons </td>
+<td> 1 / 2 / 3 </td>
+</tr>
+<tr>
+<td> Sprint </td>
+<td> Shift (read directly with <code>Input.is_key_pressed(KEY_SHIFT)</code>) </td>
+</tr>
+<tr>
+<td> Pause </td>
+<td> Esc </td>
+</tr>
+</tbody>
+</table>
+
+
+<h3>Gamepad</h3>
+
+<table>
+<thead>
+<tr>
+<th> Input </th>
+<th> Action </th>
+<th> Notes </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> Left stick </td>
+<td> move (LX/LY) </td>
+<td> normal </td>
+</tr>
+<tr>
+<td> Right stick </td>
+<td> look (RX/RY) </td>
+<td> <code>_unhandled_input</code> reads axes 2/3, deadzone 0.18 </td>
+</tr>
+<tr>
+<td> RT+ / B </td>
+<td> fire </td>
+<td> B is also reload </td>
+</tr>
+<tr>
+<td> LB / B </td>
+<td> reload </td>
+<td> <strong>B fires and reloads in the same frame</strong> </td>
+</tr>
+<tr>
+<td> A / X / Y </td>
+<td> interact </td>
+<td> </td>
+</tr>
+<tr>
+<td> D-pad Up / Left / Right </td>
+<td> pistol / rifle / shotgun </td>
+<td> direct slots </td>
+</tr>
+<tr>
+<td> RB </td>
+<td> cycle next </td>
+<td> no previous-weapon button </td>
+</tr>
+<tr>
+<td> Start </td>
+<td> pause </td>
+<td> </td>
+</tr>
+<tr>
+<td> LT </td>
+<td> unbound </td>
+<td> </td>
+</tr>
+</tbody>
+</table>
+
+
+<p>There is <strong>no gamepad sprint</strong>; sprint is keyboard Shift only. The README was<br/>
+not written for this build (the DSH artifact has no README).</p>
+
+<h3>Touch</h3>
+
+<ul>
+<li><strong>Left half:</strong> floating joystick, 144 px ring, 72 px knob.</li>
+<li><strong>Right half:</strong> drag to look.</li>
+<li><strong>Bottom-right:</strong> FIRE (172 px), RELOAD (108 px) to its left, USE (108 px)<br/>
+above FIRE.</li>
+<li><strong>Top-right:</strong> 1 / 2 / 3 weapon buttons (60 px).</li>
+<li>Touch UI auto-enables on a touchscreen and can be toggled with F9 on desktop;<br/>
+it also disables mouse-from-touch emulation so the FIRE button does not<br/>
+double-fire through LMB.</li>
+<li>FIRE/RELOAD/USE and the weapon buttons press the real input actions and release<br/>
+them on finger-up, so <strong>hold-to-fire works</strong>, including the automatic rifle.</li>
+<li><strong>No touch pause button.</strong> The pause menu has RESUME/RESTART buttons, but it<br/>
+only opens via the <code>pause</code> action (Start/Esc).</li>
+</ul>
+
+
+<h2>Test matrix for screenshots</h2>
+
+<p>Use the same sequence on both builds so the comparison is fair:</p>
+
+<table>
+<thead>
+<tr>
+<th> Test </th>
+<th> 27B </th>
+<th> Flash Next </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> Move forward </td>
+<td> left stick — expect diagonal/backwards </td>
+<td> left stick up </td>
+</tr>
+<tr>
+<td> Look </td>
+<td> LT/RT </td>
+<td> right stick </td>
+</tr>
+<tr>
+<td> Fire (pistol) </td>
+<td> B or L3 </td>
+<td> RT or B </td>
+</tr>
+<tr>
+<td> Fire (rifle, hold) </td>
+<td> tap repeatedly </td>
+<td> hold RT </td>
+</tr>
+<tr>
+<td> Reload </td>
+<td> A or X </td>
+<td> LB (avoid B) </td>
+</tr>
+<tr>
+<td> Interact </td>
+<td> A or Y </td>
+<td> A/X/Y </td>
+</tr>
+<tr>
+<td> Switch weapon </td>
+<td> Back/Guide, or touch &frac12;/3 </td>
+<td> D-pad, RB, or touch &frac12;/3 </td>
+</tr>
+<tr>
+<td> Sprint </td>
+<td> right stick X− </td>
+<td> keyboard Shift only </td>
+</tr>
+<tr>
+<td> Pause </td>
+<td> Start </td>
+<td> Start </td>
+</tr>
+<tr>
+<td> Touch fire </td>
+<td> tap </td>
+<td> hold </td>
+</tr>
+<tr>
+<td> Touch pause </td>
+<td> unavailable </td>
+<td> unavailable </td>
+</tr>
+</tbody>
+</table>
+
+
+<h2>Phone playtest (2026-11-10)</h2>
+
+<p>Installed from the two debug APKs on a Galaxy Z Fold5, with a controller:</p>
+
+<ul>
+<li><strong>27B:</strong> no player collision — walks through the diner geometry. The death-screen<br/>
+RESTART button is visible but inert. Reload and most features could not be<br/>
+reached because of the pad map above.</li>
+<li><strong>Flash Next:</strong> almost playable. Right-stick look is incremental: it turns on<br/>
+each stick movement but does not keep turning while the stick is held. Reload<br/>
+works, and the death-screen restart works.</li>
+<li>The incremental look matches the code: Flash Next applies look in<br/>
+<code>_unhandled_input</code> on <code>InputEventJoypadMotion</code>, so a held, unchanging axis<br/>
+produces no further events. Continuous look would need per-frame axis polling.</li>
+<li>The 27B collision code and the restart call both exist in the source; the<br/>
+failures are runtime/UI behavior, not missing functions.</li>
+</ul>
+
+
+<h2>Caveats</h2>
+
+<ul>
+<li>This is static code reading. Action deadzones are 0.5 unless noted; the look<br/>
+sticks use raw-axis deadzones of 0.1 (27B) and 0.18 (Flash Next).</li>
+<li>The 27B&rsquo;s pad movement is expected to be unusable; confirm with a real<br/>
+controller before treating it as a playable layout.</li>
+<li>The 27B&rsquo;s keyboard sprint event is malformed (<code>shift_pressed=true</code>, no keycode),<br/>
+so treat Shift-sprint there as unverified.</li>
+<li>Neither build exposes a touch pause control; on a phone, pausing needs a<br/>
+controller Start button (or Android&rsquo;s back handling, which neither<br/>
+implements explicitly).</li>
+</ul>
+
+
+<p class="fine"><a href="../">← Back to Field Log 002</a></p>
+
+</article>
+
+<footer>
+  <div class="wrap" style="padding:0;">
+    REBEL INTELLIGENCE DETACHMENT · GREEN BAY, WI · <a href="mailto:info@rebelintelligencedetachment.com">INFO@REBELINTELLIGENCEDETACHMENT.COM</a> · <a href="https://rebelintelligencedetachment.com">RID-HQ</a>
+  </div>
+</footer>
+</div>
+</body>
+</html>
