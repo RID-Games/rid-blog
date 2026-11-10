@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Contract work: local &amp; self-hosted AI deployment · RID</title>
+<meta name="description" content="I deploy local and self-hosted LLM stacks on your own hardware — llama.cpp, Ollama, vLLM, llama-swap, Open WebUI, RAG and agent runtimes. NVIDIA and AMD ROCm, including cards nobody officially supports. Async, fixed price, measured." />
+<meta name="theme-color" content="#070B16" />
+<link rel="canonical" href="https://blog.rebelintelligencedetachment.com/hire/" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Local &amp; self-hosted AI deployment — contract work" />
+<meta property="og:description" content="You bought the GPU. The model won't load, or it dies an hour later, or it runs at 4 tok/s. That's the whole job and it's the only job I do." />
+<meta property="og:image" content="https://blog.rebelintelligencedetachment.com/assets/box-hero-front.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --void:#070B16; --void-2:#04060D; --panel:#0c1421; --panel-2:#0e1626;
+    --line:#1c2637; --line-2:#2a3a55;
+    --steel:#8a94a6; --text:#e8ecf4; --dim:#5c667a;
+    --amber:#ff8a3d; --amber-2:#ffa45c;
+    --ok:#5fd39a;
+    --mono:'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    --sans:'Hanken Grotesk', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body {
+    margin:0; font-family:var(--sans); color:var(--text); background:var(--void);
+    -webkit-font-smoothing:antialiased; line-height:1.65; overflow-x:hidden;
+    min-height:100vh; position:relative;
+  }
+  body::before {
+    content:""; position:fixed; inset:0; z-index:-2;
+    background:
+      linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 100% 48px,
+      linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 48px 100%;
+    opacity:0.35;
+    -webkit-mask-image: radial-gradient(120% 90% at 50% 0%, #000 55%, transparent 100%);
+            mask-image: radial-gradient(120% 90% at 50% 0%, #000 55%, transparent 100%);
+  }
+  body::after {
+    content:""; position:fixed; inset:0; z-index:-3;
+    background:
+      radial-gradient(50rem 34rem at 88% 108%, rgba(255,138,61,0.14), transparent 60%),
+      linear-gradient(180deg, var(--void) 0%, var(--void-2) 100%);
+  }
+  .hud { position:fixed; inset:18px; z-index:0; pointer-events:none; }
+  .hud i { position:absolute; width:22px; height:22px; border:2px solid var(--amber); opacity:0.55; }
+  .hud .tl { top:0; left:0; border-right:0; border-bottom:0; }
+  .hud .tr { top:0; right:0; border-left:0; border-bottom:0; }
+  .hud .bl { bottom:0; left:0; border-right:0; border-top:0; }
+  .hud .br { bottom:0; right:0; border-left:0; border-top:0; }
+  a { color:inherit; text-decoration:none; }
+  .wrap { width:min(1060px, 90vw); margin-inline:auto; position:relative; z-index:1; }
+  .bar { display:flex; align-items:center; justify-content:space-between; padding:26px 0; gap:16px; flex-wrap:wrap; }
+  .sig { font-family:var(--mono); font-weight:700; letter-spacing:0.32em; font-size:0.86rem; }
+  .bar-home { font-family:var(--mono); font-size:0.78rem; letter-spacing:0.06em; color:var(--steel);
+    border:1px solid var(--line-2); padding:8px 14px; border-radius:2px; transition:border-color .2s, color .2s; }
+  .bar-home:hover { color:var(--amber-2); border-color:var(--amber); }
+  .hero { padding:clamp(40px,7vw,76px) 0 clamp(30px,4vw,48px); }
+  .eyebrow { font-family:var(--mono); font-size:0.78rem; letter-spacing:0.22em; color:var(--dim); margin-bottom:26px; }
+  .eyebrow b { color:var(--amber); font-weight:500; }
+  h1 {
+    font-family:var(--mono); font-weight:700; letter-spacing:0.02em; line-height:1.06;
+    font-size:clamp(1.8rem,5.4vw,3.6rem); margin:0 0 26px; text-transform:uppercase; max-width:22ch;
+  }
+  h1 .d { color:var(--amber); }
+  .lede { font-size:clamp(1.02rem,2vw,1.24rem); color:var(--steel); max-width:62ch; margin:0 0 18px; }
+  .lede b { color:var(--text); font-weight:600; }
+  .manifesto { font-family:var(--mono); color:var(--amber); font-weight:700; margin-top:22px; letter-spacing:0.03em; font-size:0.95rem; }
+  .cta-row { display:flex; gap:14px; flex-wrap:wrap; margin-top:34px; }
+  .btn { font-family:var(--mono); font-size:0.82rem; letter-spacing:0.1em; padding:14px 22px; border-radius:3px;
+    border:1px solid var(--amber); color:var(--void); background:var(--amber); transition:transform .15s, background .2s; }
+  .btn:hover { transform:translateY(-2px); background:var(--amber-2); }
+  .btn.ghost { background:transparent; color:var(--amber-2); }
+  .btn.ghost:hover { background:rgba(255,138,61,0.08); }
+  .section { padding:clamp(40px,6vw,72px) 0; border-top:1px solid var(--line); }
+  .section-label { font-family:var(--mono); font-size:0.78rem; letter-spacing:0.22em; color:var(--dim); margin:0 0 12px; }
+  .section-label b { color:var(--amber); font-weight:500; }
+  .section-note { color:var(--steel); max-width:66ch; margin:0 0 34px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:26px 26px 28px;
+    display:flex; flex-direction:column; transition:border-color .2s, transform .2s; }
+  .card:hover { border-color:var(--amber); transform:translateY(-2px); }
+  .card .price { font-family:var(--mono); font-size:1.5rem; font-weight:700; color:var(--amber); letter-spacing:0.01em; }
+  .card .unit { font-family:var(--mono); font-size:0.72rem; letter-spacing:0.14em; color:var(--dim); margin:4px 0 16px; }
+  .card h3 { font-family:var(--mono); font-size:1.02rem; margin:0 0 12px; letter-spacing:0.02em; }
+  .card p { margin:0 0 16px; color:var(--steel); font-size:0.94rem; }
+  .card ul { margin:auto 0 0; padding:0; list-style:none; }
+  .card li { font-size:0.88rem; color:var(--steel); padding:7px 0 7px 20px; position:relative; border-top:1px solid var(--line); }
+  .card li::before { content:"+"; position:absolute; left:2px; top:7px; color:var(--amber); font-family:var(--mono); }
+  .card.featured { border-color:var(--line-2); background:var(--panel-2); }
+  .proof { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:18px; }
+  .pcard { background:var(--panel); border:1px solid var(--line); border-radius:6px; overflow:hidden;
+    transition:border-color .2s, transform .2s; display:block; }
+  .pcard:hover { border-color:var(--amber); transform:translateY(-2px); }
+  .pcard .body { padding:22px 24px 24px; }
+  .pcard .meta { font-family:var(--mono); font-size:0.7rem; letter-spacing:0.16em; color:var(--dim); margin-bottom:10px; }
+  .pcard .meta .live { color:var(--amber); }
+  .pcard h3 { font-family:var(--mono); font-size:1rem; margin:0 0 10px; }
+  .pcard p { margin:0; color:var(--steel); font-size:0.9rem; }
+  .pcard img { width:100%; height:190px; object-fit:cover; display:block; border-bottom:1px solid var(--line); }
+  table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+  th, td { text-align:left; padding:15px 18px; border-bottom:1px solid var(--line); vertical-align:top; font-size:0.9rem; }
+  th { font-family:var(--mono); font-size:0.7rem; letter-spacing:0.16em; color:var(--dim); font-weight:500; background:var(--panel-2); }
+  td:first-child { color:var(--text); width:38%; }
+  td:last-child { color:var(--steel); }
+  tr:last-child td { border-bottom:0; }
+  .steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px; counter-reset:s; }
+  .step { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:22px 24px; }
+  .step .n { font-family:var(--mono); color:var(--amber); font-size:0.76rem; letter-spacing:0.18em; margin-bottom:10px; }
+  .step h3 { font-family:var(--mono); font-size:0.98rem; margin:0 0 10px; }
+  .step p { margin:0; color:var(--steel); font-size:0.9rem; }
+  .no { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; }
+  .no div { border-left:2px solid var(--line-2); padding:2px 0 2px 16px; color:var(--steel); font-size:0.92rem; }
+  .no b { color:var(--text); font-weight:600; display:block; font-family:var(--mono); font-size:0.86rem; letter-spacing:0.02em; margin-bottom:4px; }
+  .callout { background:var(--panel-2); border:1px solid var(--line-2); border-left:3px solid var(--amber);
+    border-radius:4px; padding:24px 26px; margin-top:26px; }
+  .callout p { margin:0; color:var(--steel); }
+  .callout b { color:var(--text); }
+  .contact { text-align:left; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:clamp(26px,4vw,40px); }
+  .contact h2 { font-family:var(--mono); font-size:clamp(1.2rem,3vw,1.7rem); margin:0 0 14px; letter-spacing:0.02em; }
+  .contact p { color:var(--steel); max-width:62ch; margin:0 0 8px; }
+  .contact .mailto { font-family:var(--mono); color:var(--amber); font-size:clamp(0.95rem,2.4vw,1.2rem); letter-spacing:0.04em; display:inline-block; margin:16px 0 6px; border-bottom:1px solid var(--amber); }
+  .contact .mailto:hover { color:var(--amber-2); }
+  footer { border-top:1px solid var(--line); padding:26px 0 40px; font-family:var(--mono);
+    font-size:0.74rem; letter-spacing:0.08em; color:var(--dim); }
+  footer a { color:var(--steel); }
+  footer a:hover { color:var(--amber-2); }
+</style>
+</head>
+<body>
+<div class="hud"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i></div>
+<div class="wrap">
+  <div class="bar">
+    <div class="sig"><a href="https://rebelintelligencedetachment.com/">RID</a> <span style="color:var(--dim);letter-spacing:0.08em;font-weight:500;">/ CONTRACT WORK</span></div>
+    <a class="bar-home" href="/">FIELD LOGS</a>
+  </div>
+
+  <div class="hero">
+    <div class="eyebrow">TAKING CONTRACT WORK · <b>ASYNC</b> · US / EU / APAC TIMEZONES</div>
+    <h1>You bought the GPU.<br />The model <span class="d">won't stay up.</span></h1>
+    <p class="lede">It won't load. Or it loads and dies forty minutes later. Or it runs at 4 tok/s and the box sounds like a jet. Or it worked fine until you added the second card. <b>That is the whole job, and it is the only job I do.</b></p>
+    <p class="lede">I deploy local and self-hosted LLM stacks on <b>your</b> hardware: Linux, llama.cpp, Ollama, vLLM, llama-swap, Open WebUI, RAG, agent runtimes. NVIDIA and AMD — including the AMD cards that appear on no support matrix. No cloud, no API keys, nothing leaves the building.</p>
+    <p class="manifesto">Software is easy. Buy more hardware. — I do the part between those two sentences.</p>
+    <div class="cta-row">
+      <a class="btn" href="mailto:info@rebelintelligencedetachment.com?subject=Deployment%20help">DESCRIBE YOUR SYMPTOM</a>
+      <a class="ghost btn" href="#proof">SEE THE RECEIPTS</a>
+    </div>
+  </div>
+
+  <div class="section" id="offer">
+    <div class="section-label"><b>//</b> THE OFFER</div>
+    <p class="section-note">Fixed price, quoted before anything starts. Every engagement ends with a written diagnosis you keep either way — including the ones where I can't fix it.</p>
+    <div class="grid">
+      <div class="card">
+        <div class="price">$99</div>
+        <div class="unit">FIXED · ASYNC · 24–48H</div>
+        <h3>Diagnosis</h3>
+        <p>You send the symptom, the GPU, the driver, and the log. I tell you what is actually wrong and exactly what to change.</p>
+        <ul>
+          <li>Written root cause, not "reinstall ROCm"</li>
+          <li>Copy-paste fix with the flags and the reason for each</li>
+          <li>Applies to a stack you already have</li>
+          <li>Credited against a build if you continue</li>
+        </ul>
+      </div>
+      <div class="card featured">
+        <div class="price">$149</div>
+        <div class="unit">FIXED · REMOTE SESSION · 90 MIN OR REFUND</div>
+        <h3>Install &amp; tune</h3>
+        <p>I get the model running on your box and keep running: server, model swap, systemd units, quantization, context size, the health-check timeouts that kill your loads.</p>
+        <ul>
+          <li>llama.cpp / Ollama / vLLM / llama-swap / Open WebUI</li>
+          <li>Quant + context chosen for your actual VRAM</li>
+          <li>Hardened units that survive a reboot</li>
+          <li>Config files and a written handover</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="price">from $800</div>
+        <div class="unit">SCOPED · 2–3 REMOTE SESSIONS</div>
+        <h3>Private AI box</h3>
+        <p>The whole thing on hardware you own: models served on your network, reachable from your phone, with an agent on top — and no dependency on anyone's API.</p>
+        <ul>
+          <li>Multi-model serving with per-model budgets</li>
+          <li>Private access from laptop and phone</li>
+          <li>Monitoring, restart policy, update path</li>
+          <li>Documented so you're not hiring me again</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout">
+      <p><b>The guarantee is arithmetic, not attitude.</b> If a scheduled session doesn't end with your stack running, you don't pay for the session — you keep the written diagnosis of what's blocking it. That is only a safe promise because the failure modes below are finite and I have personally hit every one of them.</p>
+    </div>
+  </div>
+
+  <div class="section" id="proof">
+    <div class="section-label"><b>//</b> PROOF, NOT PROMISES</div>
+    <p class="section-note">Every number on this page traces to a log file, a probe run, or a published build. Nothing here is a benchmark I borrowed.</p>
+    <div class="proof">
+      <a class="pcard" href="/posts/27b-on-a-565-dollar-gpu/">
+        <img src="/assets/box-hero-front.jpg" alt="A cardboard box with two AMD graphics cards, a fan wall, and an ATX supply inside it" />
+        <div class="body">
+          <div class="meta"><span class="live">FIELD LOG 001</span> · MEASURED 2026-10-05</div>
+          <h3>27B at 30 tok/s on a $376 32GB server GPU — no CUDA</h3>
+          <p>Qwen3.8-27B Q6_K, 196K context, <b>30.5–32.2 tok/s decode</b> on a Radeon Pro V620, MTP speculative decode at <b>92% draft acceptance</b> across six probe runs. The flags, the cooling BOM, and the four traps.</p>
+        </div>
+      </a>
+      <a class="pcard" href="/posts/expanding-integration/">
+        <div class="body">
+          <div class="meta"><span class="live">FIELD LOG 002</span> · MEASURED 2026-11-09</div>
+          <h3>Running a 180B model on a 32GB card</h3>
+          <p>Qwen3.8-Flash-Next — 177B total, 87 GiB on disk — on the same card by treating VRAM, RAM and NVMe as one cache. <b>Prefill 194 → ~750 tok/s</b>, decode <b>13 → 26–40 tok/s</b>, eval <b>0.75 → 0.88–1.00</b>. Plus a 27B-vs-180B head-to-head with both APKs attached.</p>
+        </div>
+      </a>
+      <a class="pcard" href="https://github.com/RID-Games/amd-ai-kit">
+        <div class="body">
+          <div class="meta"><span class="live">OPEN SOURCE</span> · MIT</div>
+          <h3>amd-ai-kit</h3>
+          <p>The config layer itself: llama-swap profiles, hardened systemd units, a pure-bash installer, and the troubleshooting matrix. Proof that the work is handed over in an organized state, not living in my head.</p>
+        </div>
+      </a>
+      <a class="pcard" href="https://play.google.com/store/apps/details?id=com.rid.drift">
+        <div class="body">
+          <div class="meta"><span class="live">SHIPPED</span> · GOOGLE PLAY · LIVE WITH PAYING USERS</div>
+          <h3>Drift — sleep podcast player</h3>
+          <p>Built, submitted and shipped to real users, with a live paid subscription and an AdMob unit behind it. I finish things, get them through review, and leave them running.</p>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label"><b>//</b> THE UNGLAMOROUS HALF</div>
+    <p class="section-note">This is the part that eats people's weeks, and the part a generic bidder cannot write. Each row is a real incident on a real box, with the fix that stuck.</p>
+    <table>
+      <thead><tr><th>What you'd say</th><th>What is actually happening</th></tr></thead>
+      <tbody>
+        <tr><td>"The server keeps restarting / my model disappears"</td><td>Your health-check timeout sits inside the cold-load band. Cold load was 62 s and over 300 s under memory pressure; the timeout was lower, so loads get killed, retried, and compound. Timeouts are arithmetic.</td></tr>
+        <tr><td>"It worked until I added the second GPU"</td><td>HIP index renumbering after boot silently repoints the model at the wrong card. Pin by UUID, never by index.</td></tr>
+        <tr><td>"Broke after a system update"</td><td>ROCm userspace versus kernel version roulette. The fix is a side-by-side userspace per model, not downgrading your distro.</td></tr>
+        <tr><td>"It throttles / shuts down under load"</td><td>A passively-cooled server card with no fan interface. More case airflow made one of mine 4 °C <em>worse</em>; the fix was a sealed duct.</td></tr>
+        <tr><td>"The math says it should fit"</td><td>The KV cache isn't quantized. <code>-ctk q8_0 -ctv q8_0</code> is what stops a big context and a big model being enemies.</td></tr>
+        <tr><td>"--offload-to-cpu and now the machine OOMs"</td><td>That flag loads the whole model into system RAM first; it does not stream from disk. On a 32 GB box the ceiling is around Q6_K.</td></tr>
+        <tr><td>"It's slow"</td><td>No speculative decode. The MTP head on modern GGUFs gave me 92% draft acceptance — the single biggest lever, and it is a llama.cpp feature, not a CUDA kernel.</td></tr>
+        <tr><td>"AMD can't do AI"</td><td>True in 2023. Today it is a wrong build target — a <code>CMAKE_HIP_ARCHITECTURES</code> mismatch fails silently — or a stale PyTorch/ROCm pairing.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-label"><b>//</b> HOW IT WORKS</div>
+    <div class="steps">
+      <div class="step"><div class="n">01</div><h3>You send the symptom</h3><p>What it does, what GPU and driver, what you already tried, and the last 50 lines of the log. One email, no call.</p></div>
+      <div class="step"><div class="n">02</div><h3>I name the likely cause</h3><p>Before you pay: the two or three things I'd check first, in order. If I don't think I can help, I say that instead of invoicing.</p></div>
+      <div class="step"><div class="n">03</div><h3>Fixed price, async</h3><p>Remote session or written handover. I work overnight and across timezones — US, EU, APAC. No 10am Tuesday required.</p></div>
+      <div class="step"><div class="n">04</div><h3>You keep the machine</h3><p>Config files, units, and a written diagnosis of every decision. The goal is that you never need me again.</p></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label"><b>//</b> WHAT I WON'T DO</div>
+    <div class="no">
+      <div><b>No "AI agency"</b> Reselling someone else's API with a chat interface is not engineering, and you can buy it cheaper than you can buy me.</div>
+      <div><b>No GPU rental</b> On AMD the hourly math never works. I make your existing hardware useful instead.</div>
+      <div><b>No cloud migration</b> If you want your data on someone else's servers, there are a thousand people better suited than me.</div>
+      <div><b>No open-ended retainers</b> Fixed scope, fixed price. If a job needs a 40-item feature list added after the quote, it needs a written scope line first.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="contact">
+      <h2>Describe your symptom.</h2>
+      <p>Send the GPU, the driver, the model, and what it does instead of what you want. Include the log if you have it. You'll get an honest answer about whether this is a job for me — usually within a day, always in writing.</p>
+      <a class="mailto" href="mailto:info@rebelintelligencedetachment.com?subject=Deployment%20help">info@rebelintelligencedetachment.com</a>
+      <p style="font-size:0.86rem;color:var(--dim);margin-top:14px;">Rebel Intelligence Detachment LLC · Green Bay, WI · Async across US / EU / APAC · <a href="/" style="color:var(--steel);border-bottom:1px solid var(--line-2);">Field logs</a></p>
+    </div>
+  </div>
+
+  <footer>
+    REBEL INTELLIGENCE DETACHMENT LLC · GREEN BAY, WI · <a href="mailto:info@rebelintelligencedetachment.com">INFO@REBELINTELLIGENCEDETACHMENT.COM</a> · <a href="https://rebelintelligencedetachment.com">RID-HQ</a>
+  </footer>
+</div>
+</body>
+</html>
