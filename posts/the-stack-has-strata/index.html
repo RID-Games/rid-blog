@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Stack Has Strata: the architecture of a local AI stack · The Cardboard Supercomputer · RID</title>
+<meta name="description" content="Four tiers of memory, two GPUs with different jobs, and a tool layer that asks permission before it loads. How a 180B model spans VRAM, page-locked RAM and NVMe, why the 16 GB card is the tool card, and the four times the division broke." />
+<meta name="theme-color" content="#070B16" />
+<link rel="canonical" href="https://blog.rebelintelligencedetachment.com/posts/the-stack-has-strata/" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="The Stack Has Strata: the architecture of a local AI stack" />
+<meta property="og:description" content="Four tiers of memory, two GPUs with different jobs, and a tool layer that asks permission before it loads. How a 180B model spans VRAM, page-locked RAM and NVMe, why the 16 GB card is the tool card, and the four times the division broke." />
+<meta property="og:image" content="https://blog.rebelintelligencedetachment.com/assets/box-hero-front.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --void:#070B16; --void-2:#04060D; --panel:#0c1421; --panel-2:#0e1626;
+    --line:#1c2637; --line-2:#2a3a55;
+    --steel:#8a94a6; --text:#e8ecf4; --dim:#5c667a;
+    --amber:#ff8a3d; --amber-2:#ffa45c;
+    --mono:'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    --sans:'Hanken Grotesk', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body {
+    margin:0; font-family:var(--sans); color:var(--text); background:var(--void);
+    -webkit-font-smoothing:antialiased; line-height:1.65; overflow-x:hidden;
+    min-height:100vh; position:relative;
+  }
+  body::before {
+    content:""; position:fixed; inset:0; z-index:-2;
+    background:
+      linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 100% 48px,
+      linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 48px 100%;
+    opacity:0.35;
+    -webkit-mask-image: radial-gradient(120% 90% at 50% 0%, #000 55%, transparent 100%);
+            mask-image: radial-gradient(120% 90% at 50% 0%, #000 55%, transparent 100%);
+  }
+  body::after {
+    content:""; position:fixed; inset:0; z-index:-3;
+    background:
+      radial-gradient(50rem 34rem at 88% 108%, rgba(255,138,61,0.14), transparent 60%),
+      linear-gradient(180deg, var(--void) 0%, var(--void-2) 100%);
+  }
+  .hud { position:fixed; inset:18px; z-index:0; pointer-events:none; }
+  .hud i { position:absolute; width:22px; height:22px; border:2px solid var(--amber); opacity:0.55; }
+  .hud .tl { top:0; left:0; border-right:0; border-bottom:0; }
+  .hud .tr { top:0; right:0; border-left:0; border-bottom:0; }
+  .hud .bl { bottom:0; left:0; border-right:0; border-top:0; }
+  .hud .br { bottom:0; right:0; border-left:0; border-top:0; }
+  a { color:var(--amber-2); text-decoration:none; }
+  a:hover { color:var(--amber); }
+  .wrap { width:min(760px, 92vw); margin-inline:auto; position:relative; z-index:1; }
+  .bar { display:flex; align-items:center; justify-content:space-between; padding:26px 0; gap:16px; }
+  .sig { font-family:var(--mono); font-weight:700; letter-spacing:0.32em; font-size:0.86rem; color:var(--text); }
+  .sig a { color:inherit; }
+  .bar-home { font-family:var(--mono); font-size:0.78rem; letter-spacing:0.06em; color:var(--steel);
+    border:1px solid var(--line-2); padding:8px 14px; border-radius:2px; transition:border-color .2s, color .2s; }
+  .bar-home:hover { color:var(--amber-2); border-color:var(--amber); }
+  article { padding:clamp(30px,6vw,64px) 0 80px; }
+  .eyebrow { font-family:var(--mono); font-size:0.78rem; letter-spacing:0.22em; color:var(--dim); margin-bottom:20px; }
+  .eyebrow b { color:var(--amber); font-weight:500; }
+  h1 {
+    font-family:var(--mono); font-weight:700; letter-spacing:0.02em; line-height:1.08;
+    font-size:clamp(1.7rem,4.6vw,2.9rem); margin:0 0 26px; text-transform:uppercase;
+  }
+  h1 .d { color:var(--amber); }
+  h2 {
+    font-family:var(--mono); font-weight:700; font-size:1.22rem; letter-spacing:0.04em;
+    margin:56px 0 16px; text-transform:uppercase; color:var(--text);
+  }
+  h2::before { content:"// "; color:var(--amber); }
+  p { margin:0 0 18px; color:var(--text); }
+  .tldr {
+    background:var(--panel); border:1px solid var(--line-2); border-left:3px solid var(--amber);
+    padding:18px 20px; border-radius:4px; margin:0 0 30px; font-size:1.02rem;
+  }
+  .tldr b { color:var(--amber-2); }
+  img { width:100%; height:auto; border:1px solid var(--line-2); border-radius:4px; margin:10px 0 6px; display:block; }
+  figcaption { font-family:var(--mono); font-size:0.78rem; color:var(--dim); margin:0 0 24px; }
+  pre {
+    background:var(--panel-2); border:1px solid var(--line); border-radius:4px;
+    padding:18px 20px; overflow-x:auto; font-family:var(--mono); font-size:0.84rem;
+    line-height:1.6; color:var(--text); margin:0 0 22px;
+  }
+  code { font-family:var(--mono); font-size:0.88em; background:var(--panel-2); border:1px solid var(--line);
+    border-radius:3px; padding:1px 6px; color:var(--amber-2); }
+  pre code { background:none; border:none; padding:0; color:var(--text); }
+  table { width:100%; border-collapse:collapse; margin:0 0 22px; font-size:0.92rem; }
+  th { font-family:var(--mono); font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--dim); text-align:left; padding:10px 12px; border-bottom:1px solid var(--line-2); }
+  td { padding:9px 12px; border-bottom:1px solid var(--line); color:var(--text); }
+  tr:hover td { background:rgba(255,138,61,0.04); }
+  ul, ol { margin:0 0 20px; padding-left:22px; }
+  li { margin-bottom:10px; }
+  li::marker { color:var(--amber); }
+  .fine { font-size:0.88rem; color:var(--steel); }
+  .manifesto {
+    font-family:var(--mono); font-weight:700; font-size:1.3rem; color:var(--amber);
+    text-align:center; margin:56px 0 0; letter-spacing:0.03em;
+  }
+  hr { border:none; border-top:1px solid var(--line); margin:44px 0; }
+  footer { border-top:1px solid var(--line); padding:26px 0 40px; font-family:var(--mono);
+    font-size:0.74rem; letter-spacing:0.08em; color:var(--dim); }
+  footer a { color:var(--steel); }
+  footer a:hover { color:var(--amber-2); }
+
+  h3 { font-family:var(--mono); font-weight:700; font-size:1.02rem; letter-spacing:0.03em;
+       margin:34px 0 12px; color:var(--amber-2); text-transform:uppercase; }
+  h3::before { content:"> "; color:var(--amber); }
+  td code { word-break:break-all; }
+  .tldr { margin-bottom:26px; }
+  blockquote { border-left:3px solid var(--amber); margin:0 0 20px; padding:6px 18px;
+               color:var(--steel); background:var(--panel); }
+
+</style>
+</head>
+<body>
+<div class="hud"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i></div>
+<div class="wrap">
+  <div class="bar">
+    <div class="sig"><a href="/">RID</a> <span style="color:var(--dim);letter-spacing:0.08em;font-weight:500;">/ THE CARDBOARD SUPERCOMPUTER</span></div>
+    <a class="bar-home" href="https://rebelintelligencedetachment.com/">REBELINTELLIGENCE.DETACHMENT.COM</a>
+  </div>
+
+<article>
+  <div class="eyebrow">FIELD LOG <b>004</b> · 2026-11-21 · ARCHITECTURE / LOCAL AI</div>
+  <h1>The Stack Has <span class="d">Strata</span></h1>
+
+<div class="tldr"><strong>TL;DR:</strong> One box, four tiers of memory, two GPUs with different jobs, and a tool layer that has to ask permission before it loads weights. The 180B model is smeared across VRAM, page-locked RAM and an NVMe. The 16&nbsp;GB card is the <em>tool card</em> — small models, many calls, and it is never the one that gets evicted first. Every image, mesh, video and voice job passes a single admission ledger whose eviction ladder <em>ends</em> at the big model. Here is how the layers divide the work, why the division is by <strong>latency and working set</strong> rather than by "which model is best," and the four times the division broke.</div>
+
+<hr />
+
+<p>Field log 001 was one card. Field log 002 was one model. This one is the thing underneath both: the arrangement of memory that makes either of them possible, and the division of labour between two GPUs that were never intended to work together.</p>
+
+<p>The constraint is arithmetic, and it is not close. Qwen3.8-Flash-Next at UD-IQ4_XS is <strong>87.25 GiB</strong> on disk. The box has 32&nbsp;GB of VRAM on one card, 16&nbsp;GB on another, 62.7&nbsp;GiB of usable RAM, and a 256&nbsp;GB NVMe. No tier holds it. Not one.</p>
+
+<p>So nothing lives in one place. Every byte has a home, and the home is chosen by <em>how often it is touched</em>. The entire architecture falls out of that sentence — which is the reason this post exists. When you hear people talk about a "local AI stack" as a list of models, this is the part that is missing: a list of models is not a stack. A stack is what you get when the models are <em>placed</em>, and placement is an engineering decision with consequences you can measure and get wrong.</p>
+
+<figure>
+    <img src="/assets/box-interior.jpg" alt="Inside the cardboard supercomputer: an ASUS Radeon RX 9060 XT in the upper slot, a Radeon Pro V620 below it, both bolted to a cardboard box" />
+    <figcaption>The two silicon tiers, side by side: the RX 9060 XT in the upper slot, the Radeon Pro V620 below it. The other two tiers are the parts without fans — 62.7 GiB of RAM and two drives.</figcaption>
+  </figure>
+
+<h2>The thesis: nothing fits, so the hierarchy does</h2>
+
+<p>Every tier in this box sits on a different point of the same trade: capacity against latency against dollars. That is not a metaphor. It is the table below, and every decision in the rest of this post is a reading off it.</p>
+
+<table>
+<thead>
+<tr><th> Tier </th><th> Capacity </th><th> Bandwidth </th><th> Rough cost </th><th> What lives here </th></tr>
+</thead>
+<tbody>
+<tr><td> <strong>V620 VRAM</strong> </td><td> 32 GB </td><td> ~1 TB/s </td><td> ~$300, ~$9/GB </td><td> hot experts, KV cache, the model you talk to </td></tr>
+<tr><td> <strong>9060 XT VRAM</strong> </td><td> 16 GB </td><td> ~640 GB/s </td><td> consumer card </td><td> the tool models, vision, subagents </td></tr>
+<tr><td> <strong>System RAM</strong> </td><td> 62.7 GiB </td><td> <strong>29 GB/s</strong> (JEDEC) </td><td> ~$200, ~$3.13/GB </td><td> warm experts, page-locked, one PCIe hop from the card </td></tr>
+<tr><td> <strong>NVMe</strong> </td><td> 256 GB </td><td> ~1&ndash;3 GB/s </td><td> ~$0.10/GB </td><td> cold experts, packs, the long tail </td></tr>
+<tr><td> <strong>SATA SSD</strong> </td><td> 2 TB </td><td> <strong>369 MB/s</strong> (O_DIRECT) </td><td> cheap </td><td> cold weights, the vault, everything not being touched </td></tr>
+</tbody>
+</table>
+
+<p>That table is the whole article. Everything below is one of three questions: <em>which tier does this working set belong in, what happens when two things want the same one, and what does the answer cost in seconds?</em></p>
+
+<p>Here is the placement as it actually runs today. It is worth reading as a topology, because the arrows are the interesting part:</p>
+
+<pre><code>                 your request / an agent turn
+                            │
+                            ▼
+        ┌───────────────────────────────────────┐
+        │   agent  ·  DSH  ·  this box          │
+        │   model registry: one role per port   │
+        └───┬───────────────┬───────────────┬───┘
+            │               │               │
+     ┌──────▼──────┐ ┌──────▼──────┐ ┌──────▼──────┐
+     │ V620 · 32GB │ │9060XT ·16GB │ │  CPU + RAM  │
+     │ THE BRAIN   │ │ THE TOOLS   │ │ THE STREAMER│
+     ├─────────────┤ ├─────────────┤ ├─────────────┤
+     │ Strata:180B │ │ gemma-4-12b │ │ 35 GiB tier │
+     │  ~21 GiB exp│ │  (vision)   │ │  page-locked│
+     │  KV int8    │ │ minicpm5-2b │ │  NVMe: cold │
+     │  196K ctx   │ │ qwen3-8b ×2 │ │  SATA: deep │
+     │ :8080       │ │ :11430      │ │             │
+     │ qwen3.8-27b │ │             │ │             │
+     │ :11435      │ │ read_image  │ │  vision enc │
+     │ gen workers │ │ subagents   │ │  (16 thread)│
+     └─────────────┘ └─────────────┘ └─────────────┘</code></pre>
+
+<p>Two GPUs, deliberately doing different jobs. That is the design decision this post is mostly about, and it is not the obvious one. The obvious one is "put the best model on the biggest card, and also run everything else there."</p>
+
+<h2>Tier 0 — the card that answers</h2>
+
+<p>The V620 is 32&nbsp;GB of VRAM on a 2020 VDI card that officially supports nothing you are running. It hosts the model you would call the big brain: Qwen3.8-Flash-Next, <strong>177B parameters total and about 3B active per token</strong>. Six and a half times the dense 27B from the first log, at a comparable order of decode speed, because MoE means per-token compute stays in the same class while the parameters become a memory problem instead of a math problem.</p>
+
+<p>Memory problems are the ones you can solve with placement:</p>
+
+<table>
+<thead>
+<tr><th> Tier </th><th> Holds </th><th> Why there </th></tr>
+</thead>
+<tbody>
+<tr><td> V620 VRAM </td><td> <strong>~21.19 GiB expert cache</strong> + KV + activations </td><td> the experts the router actually fires </td></tr>
+<tr><td> Page-locked RAM </td><td> <strong>34.31 GiB of warm experts</strong> </td><td> next-most-likely, one PCIe hop away </td></tr>
+<tr><td> NVMe </td><td> the cold 87.25 GiB tail </td><td> streamed on demand, rarely twice </td></tr>
+</tbody>
+</table>
+
+<p>The serving flags are the architecture in executable form. The interesting ones are not the model path:</p>
+
+<pre><code>strata --pack packs/unsloth-ud-iq4_xs \
+  --expert-cache auto \
+  --resident-budget-gib 35 \
+  --kv int8 --kv-resident 32768 \
+  --max-context 196608 \
+  --spec 4 --spec-min-p 0.5 --mtp mtp/rt \
+  --vision --vram-reserve-mib 768</code></pre>
+
+<ul>
+  <li><b><code>--resident-budget-gib 35</code></b> is the tier boundary, stated explicitly. It is the machine saying <em>this much of me is a cache for someone else's model</em>. It is also why the RAM kit was the upgrade that mattered: with 32&nbsp;GB of RAM the tier was 8&nbsp;GiB and the engine crashed one run in three under sustained long-context load — not thermally, but because the kernel was reclaiming pages the GPU had pinned. The 64&nbsp;GB kit moved the tier 8 → 30 → 35&nbsp;GiB, and the last step pinned the whole pool: <code>resident 34.31 GiB, pinned 34.31 GiB</code>.</li>
+  <li><b><code>--kv int8 --kv-resident 32768</code></b> is why a 196,608-token context fits at all. The KV cache is quantized and the hot first 32K of it stays resident, so the long context is affordable and the <em>short</em> context is fast. Without quantization, the model and its own context are competing for the same tier.</li>
+  <li><b><code>--vram-reserve-mib 768</code></b> is the politeness flag. Leave the desktop something to draw with, and leave room for the eviction handshake to complete without the compositor falling over.</li>
+</ul>
+
+<p>The <code>RLIMIT_MEMLOCK</code> detail deserves its own paragraph because it is a trap that does not announce itself: pinning 34&nbsp;GiB required raising the hard memlock ceiling from 32&nbsp;GiB to 40&nbsp;GiB. <strong>Asking for more than the limit does not fail loudly — it silently declines to pin</strong>, and your "page-locked" tier quietly becomes a pageable one that the kernel is free to evict at exactly the moment you were protecting it from.</p>
+
+<p>What the tier buys, measured on this box: decode went <strong>~13 → 26&ndash;40 tok/s</strong>, prefill at 90K went <strong>194&ndash;222 → ~750 tok/s</strong>, and the eval harness went <strong>0.75 → 0.88&ndash;1.00</strong>. The first number here is the honest one. 26&ndash;40 tok/s from a 180B model is not fast. It is <em>usable</em>, which is a different and more interesting claim — and it is the subject of the next section, because it tells you what the V620 must <em>not</em> be asked to do.</p>
+
+<h3>One card, four tenants</h3>
+
+<p>The V620 is not dedicated. It answers as the 180B brain, it serves a dense Qwen3.8-27B on a second port at 30.5&ndash;32.2 tok/s with 92% MTP draft acceptance for the work that wants predictable speed, and it hosts the generation workers — FLUX, Hunyuan3D, MiniMax-H3, Breeze TTS. Four tenants, one 32&nbsp;GB card, and no kernel scheduler to referee. Everything about the "tools" section below is a consequence of that sentence.</p>
+
+<h2>Tier 1 — the tool card</h2>
+
+<p>This is the decision I would make again first, and the one people skip. The 16&nbsp;GB RX 9060 XT is not a worse copy of the big card. It is a different machine with a different job: <strong>it is the card that answers while the big card is busy.</strong></p>
+
+<p>Think about what an agent turn actually looks like on this box. A request arrives and the agent needs to <em>look</em> at a screenshot, or <em>read</em> an image, or fan out three subagents to check three files, or classify something 400 times. Every one of those is small, frequent, and latency-sensitive — and every one of them would queue behind a 180B prefill if it lived on the V620. Meanwhile the thing the V620 is doing is by definition the thing you are willing to wait for.</p>
+
+<p>So the tool card holds three models chosen for the opposite profile:</p>
+
+<table>
+<thead>
+<tr><th> Model </th><th> Size </th><th> Context </th><th> Job </th></tr>
+</thead>
+<tbody>
+<tr><td> <strong>gemma-4-12b</strong> QAT Q4_0 + 168 MB mmproj </td><td> 6.5 GB </td><td> 131K </td><td> the eyes: <code>read_image</code>, screenshots, vision </td></tr>
+<tr><td> <strong>qwen3-8b</strong> Q4_K_M </td><td> 4.7 GB </td><td> 98K, <b>2 slots × 48K</b> </td><td> the subagent workhorse </td></tr>
+<tr><td> <strong>minicpm5-2b</strong> Q8_0 </td><td> 2.5 GB </td><td> 131K </td><td> cheap, long-context, always available </td></tr>
+</tbody>
+</table>
+
+<p>Two things in that table are load-bearing. The first is <code>--parallel 2</code> on the 8B: two subagents genuinely run at once, on one card, each with 48K of context. The second is that all three sit in one llama-swap group marked <code>exclusive: true</code>, so asking for one unloads the other instead of the two discovering, at 2&nbsp;a.m., that 16&nbsp;GB is not 9&nbsp;GB plus 7&nbsp;GB of KV.</p>
+
+<p>The TTL story is the best evidence for why this card needs its own policy. The group's global idle timeout was five minutes — sized for burst workers, which is what the card was originally for. But gemma is the <em>interactive</em> model: a five-minute idle window evicted it mid-conversation, and the cold reload back took up to 500&nbsp;s, which is longer than the agent's stream-idle watchdog. The symptom did not look like a memory bug at all. It looked like this:</p>
+
+<blockquote><code>pi-ai stream idle timeout after 300000ms</code></blockquote>
+
+<p>The fix was one line: a per-model <code>ttl: 3600</code> that resets on every request. An active session never trips it; an hour of true idle still hands the 16&nbsp;GB back to the desktop for a game. <strong>Idle policy is part of the architecture</strong>, and it is per-model, because "idle" means something different to a chat model and to a batch renderer.</p>
+
+<h3>The trap that makes this tier hard to address</h3>
+
+<p>HIP ordinal 0 on this box is the 16&nbsp;GB card. The V620 is ordinal 1, because it was bound after boot so the 9060 XT could keep the display. A bare <code>cuda:0</code> in any worker therefore aims at the small card — and the failure is a 20.9&nbsp;GB allocation refused by a 16&nbsp;GB device, which reads like an OOM and is actually an addressing bug. <code>rocm-smi</code> numbers the two cards the <em>other</em> way round, which is what makes it easy to get wrong and confident about it.</p>
+
+<p>Everything on this box selects cards by UUID, never by index, and the rule is enforced in one shared module that must be imported <em>before</em> torch, because the first torch import is what enumerates devices. Ordinals shift across reboots. UUIDs do not.</p>
+
+<h2>Tier 2 — the memory that streams</h2>
+
+<p>The 62.7&nbsp;GiB of RAM is not "system RAM" in this architecture. It is a cache with a latency budget, and it has two properties that took real work to get right.</p>
+
+<p>The first is that it must be <em>pinned</em>, which is what the memlock paragraph above is about. An unpinned expert tier is a tier the kernel can take away mid-token.</p>
+
+<p>The second is that it is slower than its label. The kit is rated DDR4-3000, but the BIOS came up on JEDEC defaults after the DIMM swap and the box is running at <strong>29 GB/s</strong> — DDR4-2133. That is on the list, and it is worth saying out loud in a post about tiering: <em>a tier you have not measured is a tier you are guessing about.</em> The streaming engine's whole job is to hide 29&nbsp;GB/s behind a GPU that wants 1&nbsp;TB/s, and it does that by being right about which experts are warm.</p>
+
+<p>Storage is tiered by temperature, not by age, and the split is deliberate:</p>
+
+<table>
+<thead>
+<tr><th> Mount </th><th> Device </th><th> Holds </th></tr>
+</thead>
+<tbody>
+<tr><td> <code>/mnt/ai-fast</code> </td><td> 256 GB NVMe </td><td> hot GGUFs, Strata packs, the MTP head, the expert-streamed native model </td></tr>
+<tr><td> <code>/mnt/ai-data</code> </td><td> 2 TB SATA </td><td> cold weights, generation checkpoints, the vault, the 87&nbsp;GiB tail nobody touches twice </td></tr>
+</tbody>
+</table>
+
+<p>And the tier boundary has a cliff, which is the single most useful number I have measured on this machine. Reload time for the dense 27B is set by whether its pages are resident, and it is not a curve, it is a set of bands:</p>
+
+<table>
+<thead>
+<tr><th> Condition </th><th> Load time </th></tr>
+</thead>
+<tbody>
+<tr><td> warm, cached </td><td> ~11 s </td></tr>
+<tr><td> cold, idle box (~22 GiB free) </td><td> ~62 s </td></tr>
+<tr><td> cold, another model resident (~21 GiB free) </td><td> ~127 s </td></tr>
+<tr><td> cold, under ~20 GiB free </td><td> <strong>&gt;300 s</strong> </td></tr>
+</tbody>
+</table>
+
+<p>That last band is the one that costs you a weekend. Below about 20&nbsp;GiB of available memory, the kernel evicts pages as fast as they fault in, so the file is re-read repeatedly and the load effectively never finishes. My health-check timeout was sized inside that band, so a third of my loads were killed and retried — which <em>compounds</em> the problem, because each retry re-reads the file. <strong>Timeouts are arithmetic, not vibes</strong>, and the arithmetic is "what is the slowest band I refuse to be in."</p>
+
+<h2>Tier 3 — the tools</h2>
+
+<p>Here is where it stops being a model-serving story and becomes a machine that does things. The tools are the point of the box — image generation, 3D meshes, textures, video, speech in and out, Blender, Godot, KiCad — and every one of them is a <em>job with a footprint</em>.</p>
+
+<p>That reframing is the whole design. A tool call is not a function call; it is a request to load several gigabytes of weights somewhere and get them out again. So the honest interface for a tool is not its name, it is:</p>
+
+<pre><code>def free_card(need_bytes): "evict whatever is in the way, if anything"</code></pre>
+
+<p>...plus a declaration of what it needs, plus the right to say no. Which is why there is exactly one ledger, <code>_budget.py</code>, and every worker asks it before loading anything:</p>
+
+<table>
+<thead>
+<tr><th> Profile </th><th> Card </th><th> Host GiB </th><th> VRAM GiB </th></tr>
+</thead>
+<tbody>
+<tr><td> <code>image</code> — SDXL-Turbo fp16 </td><td> 9060 XT </td><td> 9.0 </td><td> 9 </td></tr>
+<tr><td> <code>flux3</code> — FLUX.3 klein, per-phase streaming </td><td> 9060 XT </td><td> <strong>1.1</strong> (measured) </td><td> 11 </td></tr>
+<tr><td> <code>flux-dev</code> — FLUX.1-dev bf16 </td><td> 9060 XT </td><td> <strong>40.0</strong> </td><td> 10 </td></tr>
+<tr><td> <code>mesh</code> — Hunyuan3D-2 shape </td><td> 9060 XT </td><td> 12.0 </td><td> 12 </td></tr>
+<tr><td> <code>tex</code> / <code>trellis</code> </td><td> 9060 XT </td><td> 10 / 12 </td><td> 14 </td></tr>
+<tr><td> <code>tts</code> — Breeze TTS 2 </td><td> 9060 XT </td><td> 6.0 </td><td> 9 </td></tr>
+<tr><td> <code>video</code> — MiniMax-H3 </td><td> <strong>V620</strong> </td><td> 13.0 </td><td> 19 </td></tr>
+</tbody>
+</table>
+
+<p>Note the two rows that make the architecture legible. <code>flux3</code> needs <strong>1.1 GiB of host RAM</strong> and <code>flux-dev</code> needs <strong>40</strong> — same task, same card, a factor of thirty-six, because sd.cpp streams a GGUF per phase instead of staging every block through system memory. And <code>video</code> is the only profile on the V620, which means the big card is not reserved for the big model. It is reserved for whatever has the largest appetite, and the big model is merely the usual answer.</p>
+
+<p>When a job does not fit, the ladder is walked cheapest-first, and the interesting thing about it is that it has an <em>order</em>:</p>
+
+<ol>
+  <li>ask llama-swap to <code>/unload</code> on the relevant port — instant, free, costs a reload later</li>
+  <li>stop the gaming helper — about 2&nbsp;s, reloads on next play</li>
+  <li>ask Strata to unload — gives back <strong>~29.5 GiB of VRAM and ~33 GiB of RAM</strong>, costs a full engine reload, so it is restored afterwards</li>
+</ol>
+
+<p>The ledger also writes down what each job actually measured and feeds that back into the declared footprint, so the table above gets better every time a job runs. And because none of this can stop a process that grows <em>after</em> admission, every job runs in a transient scope with a <code>MemoryMax</code>, so a runaway is killed by cgroup accounting while the model keeps its memory. The ledger decides whether to start; the scope decides what happens if it misbehaves.</p>
+
+<p>Above the ledger sits the switchboard. Three llama-swap instances, one per tier, each with its own port and its own idle policy:</p>
+
+<pre><code>:11430   9060 XT   gemma-4-12b · minicpm5-2b · qwen3-8b     exclusive, per-model TTL
+:11435   V620      qwen3.8-27b (dense, 30-32 tok/s)          TTL 0 — held until evicted
+:11440   CPU       <em>empty</em>                                   the retired tier</code></pre>
+
+<p>That third one is worth a paragraph of honesty. It used to be GLM-5.3-Flash, running 182&nbsp;GB of int4 experts streamed from the SATA drive through a Python parent process, at the drive's measured 369&nbsp;MB/s. It worked. It was also the single most fragile thing on the box: it wanted ~9&nbsp;GB of RAM and swap as a resident, and when a cancelled request left it squatting there, swap filled to 22 of 23&nbsp;GB and the 27B's mmap could not fault its pages in fast enough to pass its own health check — twice in a row. <strong>The CPU tier was retired in November</strong>, its 182&nbsp;GB reclaimed, and the three-tier stack above is what the machine kept. Not every tier is worth keeping. That is also part of the architecture.</p>
+
+<h2>The four times the division broke</h2>
+
+<p>Every one of these is a tier-boundary failure, which is why they belong in an architecture post and not a troubleshooting page.</p>
+
+<h3>1. Thirty-three plus thirty-eight is more than sixty-two</h3>
+
+<p>On 2026-11-20 the box OOM-killed Strata in the middle of a working session. The cause was not one greedy process. Strata was holding ~33&nbsp;GiB of experts in RAM; a FLUX.1-dev render started beside it and needed 35&ndash;40&nbsp;GiB more, because CPU offload streams every weight block through system memory. 33 + 38 does not fit in 62. The kernel swapped 13&nbsp;GiB of Strata's expert cache to disk and then killed it.</p>
+
+<p>The failure that matters is not the OOM. It is that <strong>every worker had a guard and every guard was wrong in the same way</strong>: each one checked VRAM and nothing else, and nothing serialised two workers that had both independently decided they fit. A per-process guard cannot enforce a machine-wide invariant. That is what the ledger is.</p>
+
+<h3>2. Twenty-nine and a half gigabytes of VRAM went missing</h3>
+
+<p>On 2026-11-18 an amdgpu KFD fault leaked <strong>29.5&nbsp;GiB of VRAM</strong> on the V620. The card still enumerated. The health endpoint still said everything was fine. The model simply would not load, and would not load for the next four hours of debugging either. The only fix was a reboot. A tier that lies about how much it has is worse than a tier that is full, and no amount of admission control on top of a dishonest <code>/health</code> helps.</p>
+
+<h3>3. A resident that nothing evicts</h3>
+
+<p>The GLM CPU service was the last one without a TTL. It reported <code>ttl: 0</code> — never unload — and nothing else in the system treated "the CPU tier is full" as a condition worth acting on, because the eviction ladder only ever looked at the GPU. A tier with no evictor is not a cache, it is a leak with good manners. The 2026-10-05 incident (swap to 22/23&nbsp;GB, two failed 5-minute health checks) is what that costs.</p>
+
+<h3>4. A timeout sized against the wrong band</h3>
+
+<p>Covered above, and worth restating as a rule: the load-time bands mean a 300-second timeout is not "generous," it is <em>inside the failure region</em>. Twelve of twenty-five load attempts in one day were killed by their own watchdog and retried, and each retry re-read the file. The watchdog was the outage.</p>
+
+<h2>Why the division is by latency, not by size</h2>
+
+<p>The temptation with two GPUs is to rank the models and put the best one on the best card. That is not the split that works here, and I think the reason generalises:</p>
+
+<ul>
+  <li><b>Big, slow, and worth waiting for</b> goes on the card you are willing to <em>block</em> — the 180B, the meshes, the 15-minute video render.</li>
+  <li><b>Small, fast, constant and concurrent</b> goes on the card that must <em>never</em> be blocked — vision, subagents, classification, anything the agent needs mid-thought.</li>
+  <li><b>Huge and cold</b> goes on the slowest thing with the most space, because the long tail is not worth a faster bus.</li>
+</ul>
+
+<p>Under that rule, "which model is best" stops being the interesting question. The interesting questions are "what is its working set," "how long am I willing to wait for it," and "who else wants this tier right now." Every number in this post is an answer to one of those three.</p>
+
+<p>And the thing that binds it together is the agent, which is running on this same box while all of it happens — a model registry where each endpoint is a <em>role</em> rather than a preference: the eyes on the small card, the coder on the V620's dense model, the long-reasoning turns on the 180B, and the frontier calls going out to an API precisely because no tier here should be asked to be everything. The picker is manual. There is no scheduler that chooses a tier for you, and I would rather say so than pretend otherwise.</p>
+
+<h2>Honest caveats</h2>
+
+<ul>
+  <li><b>The upgrade that made this work was RAM, not a GPU.</b> A 64&nbsp;GB DDR4 kit for under $200 turned an 8&nbsp;GiB tier into a 35&nbsp;GiB tier. The card was already in the box.</li>
+  <li><b>29&nbsp;GB/s is not the speed I bought.</b> DOCP did not survive the DIMM change. Still on the list.</li>
+  <li><b>One job at a time is a real constraint.</b> The ledger serialises generation rather than pretending two renders fit. That is a deliberate downgrade in throughput for an upgrade in predictability.</li>
+  <li><b>26&ndash;40 tok/s from a 180B is "usable," not "fast."</b> If you need to read it faster than you can read, this is the wrong tier for that turn.</li>
+  <li><b>Every number here was measured on this specific box</b>, most of them by the box's own logs. Nothing is a vendor claim, and nothing is a projection. Where a number is an estimate, the table says so.</li>
+  <li><b>One of the four tiers is retired</b>, and the post keeps the empty port in the diagram on purpose. A stack is also a record of what you stopped running.</li>
+</ul>
+
+<h2>What this is actually for</h2>
+
+<p>The reason to write the placement down is that it is the only part that transfers. You will not buy this card, and you should not buy this card — it has no fan interface, no support matrix, and a cooling solution I had to print. But the shape survives the hardware: <em>capacity where it is cheap, latency where it is needed, and one ledger that decides who gets which tier and in what order.</em></p>
+
+<p>That is also why the engine is called Strata and why the name fits the machine rather than the model. The interesting thing was never a 180B model on a desktop. It was a box that decided, layer by layer, where a byte should live — and then got out of its own way.</p>
+
+<p class="manifesto">Software is easy. Buy more hardware, then teach it which tier to live in.</p>
+</article>
+
+<footer>
+  <div class="wrap" style="padding:0;">
+    REBEL INTELLIGENCE DETACHMENT · GREEN BAY, WI · <a href="mailto:info@rebelintelligencedetachment.com">INFO@REBELINTELLIGENCEDETACHMENT.COM</a> · <a href="https://rebelintelligencedetachment.com">RID-HQ</a>
+  </div>
+</footer>
+</div>
+</body>
+</html>
